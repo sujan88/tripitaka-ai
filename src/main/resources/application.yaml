@@ -63,6 +63,11 @@ rag:
   query-expansion:
     enabled: ${RAG_QUERY_EXPANSION:true}
     model: ${RAG_EXPANSION_MODEL:gpt-5.4}
+  # First questions (lessons, Dhamma questions) asked exactly like an earlier one are answered from this cache,
+  # with no model call. The key includes the corpus releases, models and prompts, so any change starts fresh.
+  answer-cache:
+    enabled: ${RAG_ANSWER_CACHE:true}
+    ttl-days: ${RAG_ANSWER_CACHE_TTL_DAYS:30}
   # Final answers use this model. Follow-up rewriting and expansion share one call on query-expansion.model.
   answer-model: ${ANSWER_MODEL:gpt-5.4-mini}
   context:

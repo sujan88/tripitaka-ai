@@ -7,6 +7,7 @@ import com.sujan.tripitaka.model.AnswerDraft;
 import com.sujan.tripitaka.model.AskRequest;
 import com.sujan.tripitaka.model.AskResponse;
 import com.sujan.tripitaka.rag.ContextExpander;
+import com.sujan.tripitaka.rag.CorpusReleaseStore;
 import com.sujan.tripitaka.rag.Layers;
 import com.sujan.tripitaka.rag.QueryExpander;
 import com.sujan.tripitaka.rag.QueryExpander.QueryPlan;
@@ -16,7 +17,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.AdvisorParams;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -55,12 +58,21 @@ public class AskService {
     private final Map<String, String> depthInstructions;
     private final String lessonTemplate;
     private final CurriculumRepository curriculum;
+    private final AnswerCache answerCache;
+    private final CorpusReleaseStore releases;
+    /** Changes whenever a prompt or model that shapes answers changes, so old cached answers stop matching. */
+    private final String answerFingerprint;
 
     public AskService(@Qualifier("answerClient") ChatClient answerClient,
                       ChatMemory chatMemory,
                       TripitakaRetriever retriever,
                       QueryExpander queryExpander,
                       CurriculumRepository curriculum,
+                      AnswerCache answerCache,
+                      CorpusReleaseStore releases,
+                      @Value("${rag.answer-model}") String answerModel,
+                      @Value("${rag.query-expansion.model:gpt-5.4}") String expansionModel,
+                      @Value("${rag.query-expansion.enabled:true}") boolean expansionEnabled,
                       @Value("${rag.collection}") String collection,
                       @Value("${rag.sinhala.collection}") String sinhalaCollection,
                       @Value("${rag.sinhala.layers:}") List<String> sinhalaLayers,
@@ -78,6 +90,8 @@ public class AskService {
                 "deep", deepPrompt.getContentAsString(StandardCharsets.UTF_8),
                 "practice", practicePrompt.getContentAsString(StandardCharsets.UTF_8));
         this.lessonTemplate = lessonPrompt.getContentAsString(StandardCharsets.UTF_8);
+        this.answerCache = answerCache;
+        this.releases = releases;
         this.chatMemory = chatMemory;
         this.retriever = retriever;
         this.collection = collection;
@@ -85,6 +99,10 @@ public class AskService {
         this.sinhalaLayers = sinhalaLayers.stream().filter(s -> s != null && !s.isBlank()).map(String::trim).toList();
         this.answerSystemPrompt = answerPrompt.getContentAsString(StandardCharsets.UTF_8);
         this.sinhalaInstructions = sinhalaPrompt.getContentAsString(StandardCharsets.UTF_8);
+        var fingerprint = new ArrayList<>(List.of("answer-cache-v1", answerModel, expansionModel,
+                String.valueOf(expansionEnabled), this.answerSystemPrompt, this.sinhalaInstructions, this.lessonTemplate));
+        this.depthInstructions.keySet().stream().sorted().forEach(k -> fingerprint.add(this.depthInstructions.get(k)));
+        this.answerFingerprint = AnswerCache.key(fingerprint);
     }
 
     public AskResponse ask(AskRequest request) {
@@ -100,6 +118,23 @@ public class AskService {
         Lesson lesson = request.lessonId() == null ? null : curriculum.lesson(request.lessonId())
                 .orElseThrow(() -> new CurriculumNotFoundException("lesson", request.lessonId()));
         Set<String> keyTextIds = lesson == null ? Set.of() : Set.copyOf(lesson.textIds());
+
+        // A first question asked exactly like an earlier one gets the stored answer: no model call at all.
+        String cacheKey = request.conversationId() == null && answerCache.enabled()
+                ? cacheKey(request, targetCollections, lesson) : null;
+        if (cacheKey != null) {
+            var cached = answerCache.get(cacheKey);
+            if (cached.isPresent()) {
+                AskResponse response = withConversation(cached.get(), conversationId);
+                // Remember the exchange so a follow-up in this new conversation still has its context.
+                chatMemory.add(conversationId, List.of(new UserMessage(request.question()),
+                        new AssistantMessage(response.answer())));
+                log.info("Answered from cache conversation={} depth={} lesson={} citations={} durationMs={}",
+                        conversationId, request.depthOrDefault(), request.lessonId(), response.citations().size(),
+                        (System.nanoTime() - started) / 1_000_000);
+                return response;
+            }
+        }
 
         // One model call turns the question (rewritten first if it is a follow-up) into the searches to run.
         QueryPlan plan = queryExpander.plan(request.question(), recentConversation(conversationId));
@@ -124,10 +159,43 @@ public class AskService {
                 result.getResponse() == null ? null : result.getResponse().getMetadata().getUsage());
         AskResponse response = AnswerAssembler.assemble(conversationId, searchQuery, result.entity(), passages);
 
+        if (cacheKey != null && cacheable(passages, response)) {
+            answerCache.put(cacheKey, response);
+        }
         log.info("Answered conversation={} depth={} lesson={} passages={} citations={} durationMs={}",
                 conversationId, request.depthOrDefault(), request.lessonId(), passages.size(), response.citations().size(),
                 (System.nanoTime() - started) / 1_000_000);
         return response;
+    }
+
+    /**
+     * Everything that shapes a first answer: the question, language, depth, lesson (as written now), the collections
+     * searched with their current releases, and the prompt/model fingerprint.
+     */
+    String cacheKey(AskRequest request, List<String> collections, Lesson lesson) {
+        var parts = new ArrayList<>(List.of(answerFingerprint, AnswerCache.normalize(request.question()),
+                String.valueOf(request.language()), request.depthOrDefault(),
+                lesson == null ? "-" : lesson.id() + "|" + lesson.title() + "|" + lesson.keyText() + "|" + lesson.textIds()));
+        for (String c : collections) {
+            parts.add(c + "@" + releases.current(c).orElse("none"));
+        }
+        return AnswerCache.key(parts);
+    }
+
+    /**
+     * Only a full-quality answer is stored: passages were found and reranked (not the rate-limit fallback), and the
+     * answer cites at least one of them. Anything less is answered again next time.
+     */
+    static boolean cacheable(List<Document> passages, AskResponse response) {
+        boolean reranked = passages.stream()
+                .map(d -> String.valueOf(d.getMetadata().get("rerankStatus")))
+                .noneMatch(status -> status.equals("fallback") || status.equals("skipped"));
+        return !passages.isEmpty() && reranked && !response.citations().isEmpty();
+    }
+
+    static AskResponse withConversation(AskResponse r, String conversationId) {
+        return new AskResponse(conversationId, r.searchQuery(), r.answer(), r.keyConcepts(), r.citations(),
+                r.mentalModel(), r.mermaid(), r.sourceDistribution(), r.unknowns(), r.followUps(), r.generatedBy());
     }
 
     /** Depth, lesson and language instructions appended to the system prompt, in that order. */

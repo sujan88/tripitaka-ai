@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * Run with: ./mvnw verify -Pevals
  */
 @Tag("eval")
-@SpringBootTest
+@SpringBootTest(properties = "rag.answer-cache.enabled=false") // evals measure fresh answers
 @ExtendWith(EvalReport.class)
 @EnabledIfEnvironmentVariable(named = "OPENAI_API_KEY", matches = ".+")
 class RetrievalEvalTest {
