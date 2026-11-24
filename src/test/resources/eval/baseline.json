@@ -1,0 +1,10 @@
+{
+  "_comment": "Cases passed per eval at the last accepted run. -Pevals fails when a score is more than eval.tolerance (default 1) cases below. Retrieval and expected-cited baselines are from the Phase C commit e0f6ca7; raise a baseline when an improvement is accepted, never lower one without saying why in the commit.",
+  "retrieval-en": { "passed": 8 },
+  "retrieval-si": { "passed": 16 },
+  "retrieval-si-heldout": { "passed": 8 },
+  "retrieval-si-layers": { "passed": 15 },
+  "retrieval-si-deep": { "passed": 10 },
+  "answer-en-expected-cited": { "passed": 8 },
+  "judge-calibration": { "passed": 6 }
+}

@@ -5,6 +5,7 @@ import com.sujan.tripitaka.rag.TripitakaRetriever;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,17 +15,18 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.Map;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Live retrieval eval: needs Qdrant running, OPENAI_API_KEY, and the collections ingested
  * (English: DN/MN/SN/AN; Sinhala: at least the Dīgha Nikāya from tipitaka.lk).
+ * Scores go to {@link EvalReport}: each fails when more than one case below eval/baseline.json.
  * Run with: ./mvnw verify -Pevals
  */
 @Tag("eval")
 @SpringBootTest
+@ExtendWith(EvalReport.class)
 @EnabledIfEnvironmentVariable(named = "OPENAI_API_KEY", matches = ".+")
 class RetrievalEvalTest {
 
@@ -48,14 +50,14 @@ class RetrievalEvalTest {
 
     @Test
     void expectedSuttaAppearsInRetrievedPassages() throws Exception {
-        assertTrue(hitRate("eval/golden-questions.json", collection) >= 0.7, "Retrieval hit rate below 70%");
+        hitRate("retrieval-en", "Retrieval English", "eval/golden-questions.json", List.of(collection));
     }
 
     @Test
     void expectedSinhalaSuttaAppearsInRetrievedPassages() throws Exception {
         assumeTrue(releases.current(sinhalaCollection).isPresent(), "Sinhala collection not ingested");
-        assertTrue(hitRate("eval/golden-questions-si.json", sinhalaCollection) >= 0.7,
-                "Sinhala retrieval hit rate below 70%");
+        hitRate("retrieval-si", "Retrieval Sinhala (suttas only)", "eval/golden-questions-si.json",
+                List.of(sinhalaCollection));
     }
 
     /**
@@ -65,8 +67,8 @@ class RetrievalEvalTest {
     @Test
     void heldOutSinhalaQuestionsFindTheirSutta() throws Exception {
         assumeTrue(releases.current(sinhalaCollection).isPresent(), "Sinhala collection not ingested");
-        assertTrue(hitRate("eval/golden-questions-si-heldout.json", sinhalaCollection) >= 0.7,
-                "Held-out Sinhala retrieval hit rate below 70%");
+        hitRate("retrieval-si-heldout", "Retrieval Sinhala held-out", "eval/golden-questions-si-heldout.json",
+                List.of(sinhalaCollection));
     }
 
     /**
@@ -83,8 +85,7 @@ class RetrievalEvalTest {
     @Test
     void sinhalaSuttaQuestionsStillFindTheirSuttaWithAllLayers() throws Exception {
         assumeTrue(releases.current(sinhalaCollection).isPresent(), "Sinhala collection not ingested");
-        assertTrue(hitRate("eval/golden-questions-si.json", allSinhala()) >= 0.7,
-                "Sinhala retrieval with all layers below 70%");
+        hitRate("retrieval-si-layers", "Retrieval Sinhala (all layers)", "eval/golden-questions-si.json", allSinhala());
     }
 
     /**
@@ -99,20 +100,23 @@ class RetrievalEvalTest {
         });
         long pauseMs = Long.getLong("eval.pauseMs", 0L);
         int good = 0;
+        long millis = 0;
         for (Case c : cases) {
             if (pauseMs > 0) {
                 Thread.sleep(pauseMs);
             }
+            long started = System.currentTimeMillis();
             var found = retriever.search(c.question(), allSinhala());
+            millis += System.currentTimeMillis() - started;
             var layers = found.stream().map(d -> String.valueOf(d.getMetadata().get("collection"))).toList();
             boolean ok = layers.contains(sinhalaCollection) && layers.stream().anyMatch(l -> !l.equals(sinhalaCollection));
             good += ok ? 1 : 0;
             System.out.printf("%s %-50s -> %s%n", ok ? "HIT " : "MISS", c.question(),
                     found.stream().map(d -> d.getMetadata().get("collection") + ":" + d.getMetadata().get("textId")).toList());
         }
-        double rate = (double) good / cases.size();
-        System.out.printf("Deep questions drawing on suttas + explanatory layers: %d/%d (%.0f%%)%n", good, cases.size(), rate * 100);
-        assertTrue(rate >= 0.7, "Deep questions drew on both suttas and explanatory layers in under 70%");
+        System.out.printf("Deep questions drawing on suttas + explanatory layers: %d/%d%n", good, cases.size());
+        EvalReport.record("retrieval-si-deep", "Deep questions use suttas + layers", good, cases.size(),
+                Map.of("avgSearchSeconds", seconds(millis, cases.size())));
     }
 
     private List<String> allSinhala() {
@@ -122,11 +126,7 @@ class RetrievalEvalTest {
         return all;
     }
 
-    private double hitRate(String goldenFile, String targetCollection) throws Exception {
-        return hitRate(goldenFile, List.of(targetCollection));
-    }
-
-    private double hitRate(String goldenFile, List<String> targetCollections) throws Exception {
+    private void hitRate(String key, String label, String goldenFile, List<String> targetCollections) throws Exception {
         String json = new ClassPathResource(goldenFile).getContentAsString(StandardCharsets.UTF_8);
         List<Case> cases = JsonMapper.builder().build().readValue(json, new TypeReference<List<Case>>() {
         });
@@ -134,19 +134,30 @@ class RetrievalEvalTest {
         // Trial rerank keys are rate-limited; -Deval.pauseMs=7000 keeps the eval under the limit.
         long pauseMs = Long.getLong("eval.pauseMs", 0L);
         int hits = 0;
+        long millis = 0;
+        var misses = new java.util.ArrayList<String>();
         for (Case c : cases) {
             if (pauseMs > 0) {
                 Thread.sleep(pauseMs);
             }
+            long started = System.currentTimeMillis();
             var textIds = retriever.search(c.question(), targetCollections).stream()
                     .map(d -> String.valueOf(d.getMetadata().get("textId")))
                     .toList();
+            millis += System.currentTimeMillis() - started;
             boolean hit = matchesAny(c.expectedTextIds(), textIds);
             System.out.printf("%s %-60s -> %s%n", hit ? "HIT " : "MISS", c.question(), textIds);
             hits += hit ? 1 : 0;
+            if (!hit) {
+                misses.add(c.question());
+            }
         }
-        double recall = (double) hits / cases.size();
-        System.out.printf("Retrieval hit rate %s: %d/%d (%.0f%%)%n", targetCollections, hits, cases.size(), recall * 100);
-        return recall;
+        System.out.printf("Retrieval hit rate %s: %d/%d%n", targetCollections, hits, cases.size());
+        EvalReport.record(key, label, hits, cases.size(),
+                Map.of("avgSearchSeconds", seconds(millis, cases.size()), "misses", misses));
+    }
+
+    private static double seconds(long millis, int n) {
+        return Math.round(millis / 10.0 / n) / 100.0;
     }
 }

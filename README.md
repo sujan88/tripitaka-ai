@@ -28,7 +28,7 @@ flowchart LR
 | Structured answer + citation validation + Mermaid mental model | implemented |
 | Web UI (static, no build step) | implemented |
 | Unit tests (no network) | 25 passing (`./mvnw verify`) |
-| Live retrieval eval (`-Pevals`) | written, needs an ingested corpus |
+| Live evals (`-Pevals`): retrieval, faithfulness, citation precision, regression gate | implemented |
 | Auth, streaming, mobile app, Sinhala embeddings | next steps |
 
 Qdrant: if issue-investigator's Qdrant is already running on 6333/6334, skip `docker compose up` and share it. This app uses its own collection, `tripitaka_chunks`.
@@ -121,10 +121,17 @@ Response shape (shared by web and the future mobile client):
 
 ```bash
 ./mvnw verify            # unit tests only, no network
-./mvnw verify -Pevals    # + live retrieval eval (Qdrant + OPENAI_API_KEY + DN/MN/SN/AN ingested)
+set -a; source .env; set +a
+./mvnw verify -Pevals -DargLine="-Deval.pauseMs=7000"   # + live evals (Qdrant, OPENAI_API_KEY, collections ingested)
 ```
 
-The eval runs 8 golden questions (MN 10, SN 56.11, MN 22, AN 3.65, …) and checks that an expected sutta appears in the retrieved passages. It reports the hit rate and fails below 70%.
+The live evals run the golden question sets (English, Sinhala, Sinhala held-out, deep karma/rebirth questions):
+
+- **Retrieval:** the expected sutta is among the retrieved passages; deep questions draw on suttas and the explanatory layers.
+- **Answers:** the answer cites the expected sutta. It is **faithful**: a judge model reviews it claim by claim, and every claim must be supported by a passage the answer cites (ported from issue-investigator's `FaithfulnessLiveTest`). Its **citation precision** is judged too: the share of cited chunks that are relevant, and an answer passes at 75% or more.
+- **Judge calibration:** fixed examples check that the judge accepts a faithful answer and rejects contradicted, invented and misattributed claims (commentary presented as the Buddha's words).
+
+All scores print in one table at the end and go to `target/eval-report.json`. A score more than one case below `src/test/resources/eval/baseline.json` fails the build (`-Deval.tolerance=N` to change); any drop within that is marked `DOWN`. `-Deval.judgeModel=…` changes the judge (default `gpt-5.4`).
 
 ## Design decisions (interview talking points)
 
@@ -147,6 +154,5 @@ The eval runs 8 golden questions (MN 10, SN 56.11, MN 22, AN 3.65, …) and chec
 ## Next steps
 
 1. Ingest MN, run `-Pevals`, and tune `rag.similarity-threshold` and `rag.answer-chunks` against the hit rate.
-2. Add a faithfulness eval (port `FaithfulnessLiveTest` from issue-investigator).
-3. Add JWT auth + CORS, then an Expo (React Native) client using the same `/api/ask` contract.
-4. Sinhala: a multilingual embedding model, plus tipitaka.lk ingestion as a third reader.
+2. Add JWT auth + CORS, then an Expo (React Native) client using the same `/api/ask` contract.
+3. Sinhala: a multilingual embedding model, plus tipitaka.lk ingestion as a third reader.
