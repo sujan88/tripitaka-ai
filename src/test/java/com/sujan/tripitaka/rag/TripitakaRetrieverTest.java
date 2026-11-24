@@ -81,6 +81,10 @@ class TripitakaRetrieverTest {
     }
 
     static TripitakaRetriever retriever(CountingEmbeddingModel embeddings) {
+        return retriever(embeddings, 8);
+    }
+
+    static TripitakaRetriever retriever(CountingEmbeddingModel embeddings, int threads) {
         var stores = new VectorStores(embeddings, TripitakaRetrieverTest::fakeStore);
         var bm25 = mock(Bm25Store.class);
         when(bm25.search(anyString(), anyString(), anyString(), anyInt())).thenAnswer(call -> {
@@ -93,7 +97,8 @@ class TripitakaRetrieverTest {
         var releases = mock(CorpusReleaseStore.class);
         when(releases.current(anyString())).thenReturn(Optional.of("r1"));
         var reranker = new PassageReranker(RestClient.create(), false, "rerank-v3.5");
-        return new TripitakaRetriever(stores, bm25, reranker, expander, releases, 25, 0.25, 6, 1, 30000);
+        return new TripitakaRetriever(stores, bm25, reranker, expander, releases, 25, 0.25, 6, 1, 30000,
+                threads, 20000);
     }
 
     @Test
@@ -116,5 +121,19 @@ class TripitakaRetrieverTest {
         retriever.search(QUERIES.get(0), COLLECTIONS);
 
         assertEquals(1, embeddings.calls.get());
+    }
+
+    @Test
+    void parallelSearchReturnsExactlyWhatSequentialSearchReturns() {
+        for (int run = 0; run < 20; run++) {
+            var sequential = retriever(new CountingEmbeddingModel(), 1).search(QUERIES.get(0), COLLECTIONS);
+            var parallel = retriever(new CountingEmbeddingModel(), 8).search(QUERIES.get(0), COLLECTIONS);
+
+            assertEquals(describe(sequential), describe(parallel));
+        }
+    }
+
+    private static List<String> describe(List<Document> documents) {
+        return documents.stream().map(d -> d.getId() + "@" + d.getScore() + d.getMetadata().get("retrievedBy")).toList();
     }
 }

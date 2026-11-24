@@ -51,6 +51,11 @@ rag:
   top-k: 25
   similarity-threshold: ${RAG_SIMILARITY_THRESHOLD:0.25}
   answer-chunks: 6
+  # The vector and BM25 searches of one question (queries x collections x 2) run on this many threads;
+  # 1 runs them one after another. A search not finished within timeout-ms counts as returning nothing.
+  search:
+    threads: ${RAG_SEARCH_THREADS:8}
+    timeout-ms: ${RAG_SEARCH_TIMEOUT_MS:20000}
   # Multi-query search: a model adds up to 3 searches (the sutta a question describes, the canon's
   # wording with Pali terms, sub-questions); the reranker sees them too. Measured (search hit rate):
   #   off: EN 7/8, SI 12/18, SI held-out 4/10 | gpt-5.4-mini: SI 12/18, held-out 6/10

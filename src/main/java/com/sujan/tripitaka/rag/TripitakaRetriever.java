@@ -1,5 +1,6 @@
 package com.sujan.tripitaka.rag;
 
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
@@ -13,6 +14,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Hybrid retrieval: Qdrant similarity + Lucene BM25 -> RRF -> optional rerank.
@@ -38,6 +46,8 @@ public class TripitakaRetriever {
     private final int answerChunks;
     private final int contextNeighbors;
     private final int contextMaxChars;
+    private final ExecutorService searchPool; // null: searches run one after another
+    private final long searchTimeoutMs;
 
     public TripitakaRetriever(VectorStores vectorStores, Bm25Store bm25Store, PassageReranker reranker,
                               QueryExpander queryExpander, CorpusReleaseStore releases,
@@ -45,7 +55,9 @@ public class TripitakaRetriever {
                               @Value("${rag.similarity-threshold:0.25}") double similarityThreshold,
                               @Value("${rag.answer-chunks:6}") int answerChunks,
                               @Value("${rag.context.neighbors:1}") int contextNeighbors,
-                              @Value("${rag.context.max-chars:30000}") int contextMaxChars) {
+                              @Value("${rag.context.max-chars:30000}") int contextMaxChars,
+                              @Value("${rag.search.threads:8}") int searchThreads,
+                              @Value("${rag.search.timeout-ms:20000}") long searchTimeoutMs) {
         this.vectorStores = vectorStores;
         this.bm25Store = bm25Store;
         this.reranker = reranker;
@@ -56,6 +68,12 @@ public class TripitakaRetriever {
         this.answerChunks = answerChunks;
         this.contextNeighbors = contextNeighbors;
         this.contextMaxChars = contextMaxChars;
+        this.searchTimeoutMs = searchTimeoutMs;
+        this.searchPool = searchThreads <= 1 ? null : Executors.newFixedThreadPool(searchThreads, runnable -> {
+            var thread = new Thread(runnable, "retrieval-search");
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
     /** Adds the chunks around each hit (same sutta, same release) so the model sees the wider teaching. */
@@ -80,7 +98,7 @@ public class TripitakaRetriever {
 
     /**
      * Searches several collections at once (e.g. suttas + Abhidhamma + commentaries). The first collection is the
-     * primary source: when several are searched, at least {@link #MIN_PRIMARY} of the passages come from it.
+     * primary source: its top passages are always kept, and the other layers only add passages that score as well.
      */
     public List<Document> search(String query, List<String> collections) {
         String primary = collections.get(0);
@@ -93,8 +111,7 @@ public class TripitakaRetriever {
             return List.of();
         }
 
-        // Every expanded query runs both searches in every collection. The primary (sutta) collection and the
-        // other layers are fused separately, so dense commentary can never push the suttas out of the pool.
+        long started = System.nanoTime();
         List<String> queries = queryExpander.expand(query);
         try {
             vectorStores.prepareQueries(queries); // one embedding call for all queries x collections
@@ -102,30 +119,41 @@ public class TripitakaRetriever {
             log.warn("Batch query embedding failed; each search embeds its own query errorType={}",
                     failure.getClass().getSimpleName());
         }
-        List<List<Document>> rankings = new ArrayList<>();
-        List<List<Document>> otherRankings = new ArrayList<>();
-        Set<String> semanticIds = new java.util.HashSet<>();
-        Set<String> keywordIds = new java.util.HashSet<>();
+        // Every expanded query runs both searches in every collection, in parallel. Results are collected in
+        // submission order (collection, query, vector-then-BM25), so fusion sees the same rankings as a
+        // sequential run. The primary (sutta) collection and the other layers are fused separately, so dense
+        // commentary can never push the suttas out of the pool.
+        long searchStarted = System.nanoTime();
         var filters = new FilterExpressionBuilder();
+        List<Search> searches = new ArrayList<>();
         for (var entry : published.entrySet()) {
             String collection = entry.getKey();
             String release = entry.getValue();
             var filter = filters.and(filters.eq("collection", collection), filters.eq("release", release)).build();
             for (String q : queries) {
-                List<Document> semantic = usable(vectorStores.forCollection(collection).similaritySearch(SearchRequest.builder()
-                        .query(q)
-                        .topK(topK)
-                        .similarityThreshold(similarityThreshold)
-                        .filterExpression(filter)
-                        .build()));
-                List<Document> keyword = usable(bm25Store.search(q, collection, release, topK));
-                var target = collection.equals(primary) ? rankings : otherRankings;
-                target.add(semantic);
-                target.add(keyword);
-                semantic.forEach(d -> semanticIds.add(d.getId()));
-                keyword.forEach(d -> keywordIds.add(d.getId()));
+                searches.add(new Search(collection, true, () -> vectorStores.forCollection(collection)
+                        .similaritySearch(SearchRequest.builder()
+                                .query(q)
+                                .topK(topK)
+                                .similarityThreshold(similarityThreshold)
+                                .filterExpression(filter)
+                                .build())));
+                searches.add(new Search(collection, false, () -> bm25Store.search(q, collection, release, topK)));
             }
         }
+        List<List<Document>> results = runAll(searches);
+
+        List<List<Document>> rankings = new ArrayList<>();
+        List<List<Document>> otherRankings = new ArrayList<>();
+        Set<String> semanticIds = new java.util.HashSet<>();
+        Set<String> keywordIds = new java.util.HashSet<>();
+        for (int i = 0; i < searches.size(); i++) {
+            Search search = searches.get(i);
+            List<Document> found = usable(results.get(i));
+            (search.collection().equals(primary) ? rankings : otherRankings).add(found);
+            found.forEach(d -> (search.semantic() ? semanticIds : keywordIds).add(d.getId()));
+        }
+        long searchMs = (System.nanoTime() - searchStarted) / 1_000_000;
 
         boolean layered = !otherRankings.isEmpty() && !rankings.isEmpty();
         // The reranker sees the question plus its expansions: a description ("the origin of the world") only
@@ -146,10 +174,72 @@ public class TripitakaRetriever {
             finalDocs = tagOrigins(semanticIds, keywordIds, reranker.rerank(rerankQuery, merged, answerChunks));
         }
 
-        log.info("Retrieval collections={} queries={} semantic={} bm25={} merged={} final={} texts={}",
-                published.keySet(), queries.size(), semanticIds.size(), keywordIds.size(), merged.size(), finalDocs.size(),
+        log.info("Retrieval collections={} queries={} searches={} semantic={} bm25={} merged={} final={} searchMs={} "
+                        + "retrievalMs={} texts={}",
+                published.keySet(), queries.size(), searches.size(), semanticIds.size(), keywordIds.size(), merged.size(),
+                finalDocs.size(), searchMs, (System.nanoTime() - started) / 1_000_000,
                 finalDocs.stream().map(d -> String.valueOf(d.getMetadata().get("textId"))).toList());
         return finalDocs;
+    }
+
+    /** One vector or BM25 search of one query in one collection. */
+    private record Search(String collection, boolean semantic, Callable<List<Document>> call) {
+    }
+
+    /**
+     * Runs the searches on the bounded pool (or inline with one thread) and returns their results in the order
+     * given. A search that fails or misses the request deadline counts as empty, like a collection with no hits.
+     */
+    private List<List<Document>> runAll(List<Search> searches) {
+        List<List<Document>> results = new ArrayList<>();
+        if (searchPool == null) {
+            for (Search search : searches) {
+                results.add(runOne(search));
+            }
+            return results;
+        }
+        List<Future<List<Document>>> futures = searches.stream()
+                .map(search -> searchPool.submit(() -> runOne(search)))
+                .toList();
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(searchTimeoutMs);
+        for (int i = 0; i < futures.size(); i++) {
+            Future<List<Document>> future = futures.get(i);
+            try {
+                results.add(future.get(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS));
+            } catch (TimeoutException late) {
+                future.cancel(true);
+                log.warn("Search timed out collection={} semantic={} timeoutMs={}",
+                        searches.get(i).collection(), searches.get(i).semantic(), searchTimeoutMs);
+                results.add(List.of());
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                futures.forEach(f -> f.cancel(true));
+                throw new IllegalStateException("Retrieval interrupted", interrupted);
+            } catch (ExecutionException failure) {
+                // runOne already catches search failures; anything here is unexpected.
+                log.warn("Search failed errorType={}", failure.getCause().getClass().getSimpleName());
+                results.add(List.of());
+            }
+        }
+        return results;
+    }
+
+    private static List<Document> runOne(Search search) {
+        try {
+            List<Document> found = search.call().call();
+            return found == null ? List.of() : found;
+        } catch (Exception failure) {
+            log.warn("Search failed collection={} semantic={} errorType={}",
+                    search.collection(), search.semantic(), failure.getClass().getSimpleName());
+            return List.of();
+        }
+    }
+
+    @PreDestroy
+    void shutdown() {
+        if (searchPool != null) {
+            searchPool.shutdownNow();
+        }
     }
 
     private static List<Document> tagOrigins(Set<String> semanticIds, Set<String> keywordIds, List<Document> docs) {
