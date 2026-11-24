@@ -9,7 +9,7 @@ flowchart LR
     I --> R[(corpus_releases pointer)]
   end
   subgraph Per question
-    U[Web UI / mobile] --> Q[Follow-up rewrite] --> H[Hybrid search + RRF + rerank]
+    U[Web UI / mobile] --> Q[Query plan: follow-up rewrite + expansion] --> H[Hybrid search + RRF + rerank]
     H --> L[LLM structured answer] --> V[AnswerAssembler validation] --> U
   end
   I -.-> H
@@ -131,7 +131,7 @@ The eval runs 8 golden questions (MN 10, SN 56.11, MN 22, AN 3.65, …) and chec
 1. **Chunk by passage, not by token count.** `PassageChunker` packs whole paragraphs (SuttaCentral, tipitaka.lk) or pages (PDF) into chunks of about 2,400 characters. A teaching stays together, and every chunk carries a real reference like `mn10:12.1 … mn10:14.3`, so citations point somewhere a reader can check.
 2. **One release per collection.** issue-investigator published a generation per document. With about 5,000 suttas, that becomes a huge `IN (...)` filter on every query. Here the whole collection is hashed into one release. Both indexes are staged first, then a single SQL pointer switches. Re-running an unchanged ingest is a no-op. Chunk IDs include the release, so a new release never overwrites points that in-flight requests still read. The trade-off is that any change re-embeds the collection, which costs cents to a few dollars with text-embedding-3-small.
 3. **Pali-aware BM25.** `StandardTokenizer + LowerCase + ASCIIFolding` makes "nibbana" match "nibbāna". Users search exact Pali terms where embeddings are weakest, which is why hybrid retrieval matters here.
-4. **Follow-up rewrite.** Retrieval on "explain the third one" returns noise. A memory-free client rewrites the question into a standalone query using recent history, and falls back to the raw question on failure.
+4. **Follow-up rewrite.** Retrieval on "explain the third one" returns noise. One structured call (`QueryExpander.plan`) rewrites a follow-up into a standalone query using recent history and expands it into extra searches; a first question is only expanded. Any failure falls back to the raw question.
 5. **Context out of memory.** Retrieved passages go in the system message, so chat memory holds only questions and answers, not thousands of tokens of scripture per turn.
 6. **The model proposes, code decides.** `AnswerAssembler` drops citations that weren't retrieved in this request and builds citation metadata from the index, not from model output. It sanitizes the mental model before generating Mermaid. The source chart is counted from retrieval metadata, so no numbers come from the LLM.
 7. **Diagram as data.** The API returns `nodes/edges` plus Mermaid. The web UI renders Mermaid now, and a mobile client can draw the same graph natively later.

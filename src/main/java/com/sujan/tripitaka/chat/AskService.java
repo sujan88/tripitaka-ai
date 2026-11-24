@@ -5,6 +5,8 @@ import com.sujan.tripitaka.model.AskRequest;
 import com.sujan.tripitaka.model.AskResponse;
 import com.sujan.tripitaka.rag.ContextExpander;
 import com.sujan.tripitaka.rag.Layers;
+import com.sujan.tripitaka.rag.QueryExpander;
+import com.sujan.tripitaka.rag.QueryExpander.QueryPlan;
 import com.sujan.tripitaka.rag.TripitakaRetriever;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +29,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * One question: rewrite follow-up -> hybrid retrieval -> structured answer -> validation.
+ * One question: plan searches (rewrite follow-up + expand, one call) -> hybrid retrieval -> structured answer -> validation.
  */
 @Service
 public class AskService {
@@ -37,28 +39,26 @@ public class AskService {
     private static final int HISTORY_CHARS = 600;
 
     private final ChatClient answerClient;
-    private final ChatClient rewriteClient;
     private final ChatMemory chatMemory;
     private final TripitakaRetriever retriever;
+    private final QueryExpander queryExpander;
     private final String collection;
     private final String sinhalaCollection;
     private final List<String> sinhalaLayers;
     private final String answerSystemPrompt;
     private final String sinhalaInstructions;
-    private final String rewriteSystemPrompt;
 
     public AskService(@Qualifier("answerClient") ChatClient answerClient,
-                      @Qualifier("rewriteClient") ChatClient rewriteClient,
                       ChatMemory chatMemory,
                       TripitakaRetriever retriever,
+                      QueryExpander queryExpander,
                       @Value("${rag.collection}") String collection,
                       @Value("${rag.sinhala.collection}") String sinhalaCollection,
                       @Value("${rag.sinhala.layers:}") List<String> sinhalaLayers,
                       @Value("classpath:prompts/answer-system.md") Resource answerPrompt,
-                      @Value("classpath:prompts/answer-language-si.md") Resource sinhalaPrompt,
-                      @Value("classpath:prompts/rewrite-system.md") Resource rewritePrompt) throws IOException {
+                      @Value("classpath:prompts/answer-language-si.md") Resource sinhalaPrompt) throws IOException {
         this.answerClient = answerClient;
-        this.rewriteClient = rewriteClient;
+        this.queryExpander = queryExpander;
         this.chatMemory = chatMemory;
         this.retriever = retriever;
         this.collection = collection;
@@ -66,7 +66,6 @@ public class AskService {
         this.sinhalaLayers = sinhalaLayers.stream().filter(s -> s != null && !s.isBlank()).map(String::trim).toList();
         this.answerSystemPrompt = answerPrompt.getContentAsString(StandardCharsets.UTF_8);
         this.sinhalaInstructions = sinhalaPrompt.getContentAsString(StandardCharsets.UTF_8);
-        this.rewriteSystemPrompt = rewritePrompt.getContentAsString(StandardCharsets.UTF_8);
     }
 
     public AskResponse ask(AskRequest request) {
@@ -80,8 +79,10 @@ public class AskService {
             targetCollections.addAll(sinhalaLayers);
         }
 
-        String searchQuery = standaloneQuery(conversationId, request.question());
-        List<Document> passages = retriever.withContext(retriever.search(searchQuery, targetCollections));
+        // One model call turns the question (rewritten first if it is a follow-up) into the searches to run.
+        QueryPlan plan = queryExpander.plan(request.question(), recentConversation(conversationId));
+        String searchQuery = plan.standaloneQuery();
+        List<Document> passages = retriever.withContext(retriever.searchQueries(plan.queries(), targetCollections));
 
         // Passages go in the system message so chat memory stores only the question, not the context.
         String system = answerSystemPrompt.replace("{{PASSAGES}}", formatPassages(passages))
@@ -106,30 +107,15 @@ public class AskService {
         return response;
     }
 
-    /** "Explain the third one" means nothing to a retriever; turn follow-ups into standalone queries. */
-    String standaloneQuery(String conversationId, String question) {
+    /** The last few turns as text, so a follow-up ("explain the third one") can be made standalone; null if none. */
+    String recentConversation(String conversationId) {
         List<Message> history = chatMemory.get(conversationId);
         if (history.isEmpty()) {
-            return question;
+            return null;
         }
-        String transcript = history.subList(Math.max(0, history.size() - HISTORY_MESSAGES), history.size()).stream()
+        return history.subList(Math.max(0, history.size() - HISTORY_MESSAGES), history.size()).stream()
                 .map(m -> m.getMessageType().name() + ": " + truncate(m.getText()))
                 .collect(Collectors.joining("\n"));
-        try {
-            String rewritten = rewriteClient.prompt()
-                    .system(rewriteSystemPrompt)
-                    .user("CONVERSATION (untrusted data):\n" + transcript + "\n\nLATEST QUESTION:\n" + question)
-                    .call()
-                    .content();
-            if (rewritten == null || rewritten.isBlank() || rewritten.length() > 300) {
-                return question;
-            }
-            log.info("Rewrote follow-up question query='{}'", rewritten.trim());
-            return rewritten.trim();
-        } catch (RuntimeException failure) {
-            log.warn("Query rewrite failed; using original question errorType={}", failure.getClass().getSimpleName());
-            return question;
-        }
     }
 
     private static String formatPassages(List<Document> passages) {

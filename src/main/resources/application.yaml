@@ -63,7 +63,7 @@ rag:
   query-expansion:
     enabled: ${RAG_QUERY_EXPANSION:true}
     model: ${RAG_EXPANSION_MODEL:gpt-5.4}
-  # Final answers use this model; follow-up rewriting stays on spring.ai.openai.chat.model.
+  # Final answers use this model. Follow-up rewriting and expansion share one call on query-expansion.model.
   answer-model: ${ANSWER_MODEL:gpt-5.4-mini}
   context:
     # Chunks added on each side of a search hit, and the character budget for them (~4 chars per token).

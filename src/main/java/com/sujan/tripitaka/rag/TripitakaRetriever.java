@@ -101,6 +101,11 @@ public class TripitakaRetriever {
      * primary source: its top passages are always kept, and the other layers only add passages that score as well.
      */
     public List<Document> search(String query, List<String> collections) {
+        return searchQueries(queryExpander.expand(query), collections);
+    }
+
+    /** Like {@link #search(String, List)} for searches already planned (see {@link QueryExpander#plan}). */
+    public List<Document> searchQueries(List<String> queries, List<String> collections) {
         String primary = collections.get(0);
         Map<String, String> published = new java.util.LinkedHashMap<>();
         for (String collection : collections) {
@@ -112,7 +117,6 @@ public class TripitakaRetriever {
         }
 
         long started = System.nanoTime();
-        List<String> queries = queryExpander.expand(query);
         try {
             vectorStores.prepareQueries(queries); // one embedding call for all queries x collections
         } catch (RuntimeException failure) {
