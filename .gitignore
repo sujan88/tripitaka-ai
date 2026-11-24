@@ -1,0 +1,9 @@
+target/
+data/
+.env
+.idea/
+*.iml
+.DS_Store
+.idea.bak/
+.idea.old/
+build.log

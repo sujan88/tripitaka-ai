@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: tripitaka-rag
+  autoconfigure:
+    # Spring AI's single default Qdrant store is not used: VectorStores opens one store per collection.
+    exclude: org.springframework.ai.vectorstore.qdrant.autoconfigure.QdrantVectorStoreAutoConfiguration
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        model: ${OPENAI_MODEL:gpt-5.4-nano}
+      embedding:
+        # Swap for a multilingual model before ingesting Sinhala text (see README).
+        model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+    retry:
+      max-attempts: 2
+    chat:
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: always
+    vectorstore:
+      qdrant:
+        # Connection only. Each logical collection has its own Qdrant collection (see VectorStores):
+        # sutta-en -> tripitaka_sutta_en, sutta-si -> tripitaka_sutta_si.
+        host: localhost
+        port: 6334
+        use-tls: false
+
+  datasource:
+    url: jdbc:h2:file:./data/tripitaka
+    username: sa
+    password: ""
+  flyway:
+    enabled: true
+
+server:
+  # Local-only until auth is added (see README "Next steps").
+  # SERVER_ADDRESS=0.0.0.0 lets a phone on the same Wi-Fi reach it: trusted networks only, there is no login.
+  address: ${SERVER_ADDRESS:127.0.0.1}
+
+rag:
+  collection: ${TRIPITAKA_COLLECTION:sutta-en}
+  sinhala:
+    # Sinhala page (/si.html) and requests with "language":"si" search this collection.
+    collection: ${TRIPITAKA_SI_COLLECTION:sutta-si}
+  # Candidates per search method; the merged list (up to 2x) is reranked down to answer-chunks.
+  top-k: 25
+  similarity-threshold: ${RAG_SIMILARITY_THRESHOLD:0.25}
+  answer-chunks: 6
+  # Multi-query search: a model adds up to 3 searches (the sutta a question describes, the canon's
+  # wording with Pali terms, sub-questions); the reranker sees them too. Measured (search hit rate):
+  #   off: EN 7/8, SI 12/18, SI held-out 4/10 | gpt-5.4-mini: SI 12/18, held-out 6/10
+  #   gpt-5.4: EN 8/8, SI 16/18, SI held-out 8/10 (about +4 s and one extra call per question)
+  query-expansion:
+    enabled: ${RAG_QUERY_EXPANSION:true}
+    model: ${RAG_EXPANSION_MODEL:gpt-5.4}
+  # Final answers use this model; follow-up rewriting stays on spring.ai.openai.chat.model.
+  answer-model: ${ANSWER_MODEL:gpt-5.4-mini}
+  context:
+    # Chunks added on each side of a search hit, and the character budget for them (~4 chars per token).
+    neighbors: ${RAG_CONTEXT_NEIGHBORS:1}
+    max-chars: ${RAG_CONTEXT_MAX_CHARS:30000}
+  bm25:
+    path: ./data/bm25
+  rerank:
+    enabled: ${RERANK_ENABLED:false}
+    api-key: ${COHERE_API_KEY:}
+    model: ${COHERE_RERANK_MODEL:rerank-v3.5}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+logging:
+  level:
+    com.sujan.tripitaka: INFO

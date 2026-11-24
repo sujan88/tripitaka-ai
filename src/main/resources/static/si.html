@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="si" data-language="si">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ත්‍රිපිටක අධ්‍යයන සහායකය</title>
+  <link rel="stylesheet" href="/ui/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>ත්‍රිපිටක අධ්‍යයන සහායකය</h1>
+      <p class="sub">බුද්ධ ජයන්ති ත්‍රිපිටකයේ සිංහල පරිවර්තනය ඇසුරින් පිළිතුරු, මූලාශ්‍ර සහ සංකල්ප සිතියම සමඟ.</p>
+    </div>
+    <div class="top-actions">
+      <a class="ghost" href="/" lang="en">English</a>
+      <button id="new-chat" class="ghost" type="button">නව සංවාදයක්</button>
+    </div>
+  </header>
+
+  <main id="thread" aria-live="polite">
+    <section class="empty" id="empty">
+      <p>මේවායින් එකක් උත්සාහ කරන්න:</p>
+      <div class="chips">
+        <button class="chip" type="button">සාමඤ්ඤඵල සූත්‍රයේ දැක්වෙන ශ්‍රමණ ඵල මොනවාද?</button>
+        <button class="chip" type="button">සතර සතිපට්ඨානය පියවරෙන් පියවර පැහැදිලි කරන්න</button>
+        <button class="chip" type="button">මහාපරිනිර්වාණ සූත්‍රයේ බුදුරජාණන් වහන්සේගේ අවසාන අවවාදය කුමක්ද?</button>
+        <button class="chip" type="button">සිගාලක සූත්‍රයේ ගිහි වත් මොනවාද?</button>
+      </div>
+    </section>
+  </main>
+
+  <form id="ask-form" class="composer">
+    <label for="question" class="sr-only">ඔබේ ප්‍රශ්නය</label>
+    <textarea id="question" rows="2" maxlength="1000" placeholder="ධර්ම කරුණක්, සූත්‍රයක් හෝ පාලි වචනයක් ගැන අසන්න…" required></textarea>
+    <button id="ask" type="submit">අසන්න</button>
+  </form>
+  <p id="form-error" class="error" role="alert"></p>
+
+  <footer class="attribution">
+    පාඨය: බුද්ධ ජයන්ති ත්‍රිපිටකය, <a href="https://tipitaka.lk" target="_blank" rel="noopener">tipitaka.lk</a>
+    (<a href="https://creativecommons.org/licenses/by-nd/4.0/" target="_blank" rel="noopener">CC BY-ND 4.0</a>).
+    පිළිතුරු AI මගින් ලියැවේ; සැමවිට මුල් සූත්‍රය කියවා තහවුරු කරගන්න.
+  </footer>
+
+  <script type="module" src="/ui/app.js"></script>
+</body>
+</html>

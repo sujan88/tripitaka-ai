@@ -1,0 +1,10 @@
+[
+  { "question": "What are the four foundations of mindfulness?", "expectedTextIds": ["mn10", "dn22"] },
+  { "question": "What did the Buddha teach in his first sermon about the middle way?", "expectedTextIds": ["sn56.11"] },
+  { "question": "Explain the simile of the raft", "expectedTextIds": ["mn22"] },
+  { "question": "How should one decide which teachings to accept, according to the Kalamas sutta?", "expectedTextIds": ["an3.65"] },
+  { "question": "Why is form not self? Characteristic of not-self", "expectedTextIds": ["sn22.59"] },
+  { "question": "Mindfulness of breathing in sixteen steps", "expectedTextIds": ["mn118", "sn54."] },
+  { "question": "The parable of the poisoned arrow and unanswered questions", "expectedTextIds": ["mn63"] },
+  { "question": "What are the links of dependent origination?", "expectedTextIds": ["sn12.1", "sn12.2", "dn15"] }
+]

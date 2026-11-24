@@ -1,0 +1,20 @@
+[
+  { "question": "සාමඤ්ඤඵල සූත්‍රයේ දැක්වෙන ශ්‍රමණ ඵල මොනවාද?", "expectedTextIds": ["dn-1-2"] },
+  { "question": "බ්‍රහ්මජාල සූත්‍රයේ දෘෂ්ටි හැට දෙක", "expectedTextIds": ["dn-1-1"] },
+  { "question": "මහා සතිපට්ඨාන සූත්‍රයේ කායානුපස්සනාව", "expectedTextIds": ["dn-2-9"] },
+  { "question": "බුදුරජාණන් වහන්සේගේ පරිනිර්වාණය සහ අවසාන වචන", "expectedTextIds": ["dn-2-3"] },
+  { "question": "සිගාලකට දුන් ගිහි විනය, දිශා හය වන්දනා කිරීම", "expectedTextIds": ["dn-3-8"] },
+  { "question": "පටිච්චසමුප්පාදය ගැඹුරු බව ආනන්දට වදාළ දේශනාව", "expectedTextIds": ["dn-2-2"] },
+  { "question": "ලෝකයේ ආරම්භය සහ වර්ණ හතරේ උපත", "expectedTextIds": ["dn-3-4"] },
+  { "question": "කූටදන්ත බ්‍රාහ්මණයාගේ යාගය", "expectedTextIds": ["dn-1-5"] },
+  { "question": "දෙවිවරුන් රැස්වූ මහා සමාගමය", "expectedTextIds": ["dn-2-7"] },
+  { "question": "සක්දෙවිඳුන් බුදුරදුන්ගෙන් ඇසූ ප්‍රශ්න", "expectedTextIds": ["dn-2-8"] },
+  { "question": "සතිපට්ඨාන සූත්‍රයේ සතර සතිපට්ඨානය", "expectedTextIds": ["mn-1-1-10", "dn-2-9"] },
+  { "question": "ධර්මය එතෙර වීමට පමණක් වූ පහුරක් බඳු බව දැක්වෙන උපමාව", "expectedTextIds": ["mn-1-3-2"] },
+  { "question": "විෂ පෙවූ ඊතලයකින් විදිනු ලැබූ පුද්ගලයාගේ උපමාව සහ නොවිසඳූ ප්‍රශ්න", "expectedTextIds": ["mn-2-2-3"] },
+  { "question": "ආනාපානසතිය වඩන පියවර දහසය", "expectedTextIds": ["mn-3-2-8", "sn-5-2-7-15", "sn-5-10-"] },
+  { "question": "පළමු ධර්ම දේශනාවේ මධ්‍යම ප්‍රතිපදාව සහ චතුරාර්ය සත්‍යය", "expectedTextIds": ["sn-5-12-2-1"] },
+  { "question": "මංගල සූත්‍රයේ උතුම් මංගල කරුණු", "expectedTextIds": ["kn-khp-5"] },
+  { "question": "රතන සූත්‍රය", "expectedTextIds": ["kn-khp-6"] },
+  { "question": "සිත සියලු දේට පෙරටු වන බව කියන ධම්මපදයේ පළමු ගාථා", "expectedTextIds": ["kn-dhp-1"] }
+]

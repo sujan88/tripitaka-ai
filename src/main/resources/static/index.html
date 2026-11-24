@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tripitaka study companion</title>
+  <link rel="stylesheet" href="/ui/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Tripitaka study companion</h1>
+      <p class="sub">Answers grounded in cited suttas, with a concept map.</p>
+    </div>
+    <div class="top-actions">
+      <a class="ghost" href="/si.html" lang="si">සිංහල</a>
+      <button id="new-chat" class="ghost" type="button">New conversation</button>
+    </div>
+  </header>
+
+  <main id="thread" aria-live="polite">
+    <section class="empty" id="empty">
+      <p>Try one of these:</p>
+      <div class="chips">
+        <button class="chip" type="button">What are the four foundations of mindfulness?</button>
+        <button class="chip" type="button">Explain dependent origination step by step</button>
+        <button class="chip" type="button">What does the simile of the raft teach?</button>
+        <button class="chip" type="button">How is not-self (anattā) explained?</button>
+      </div>
+    </section>
+  </main>
+
+  <form id="ask-form" class="composer">
+    <label for="question" class="sr-only">Your question</label>
+    <textarea id="question" rows="2" maxlength="1000" placeholder="Ask about a teaching, sutta or term…" required></textarea>
+    <button id="ask" type="submit">Ask</button>
+  </form>
+  <p id="form-error" class="error" role="alert"></p>
+
+  <script type="module" src="/ui/app.js"></script>
+</body>
+</html>

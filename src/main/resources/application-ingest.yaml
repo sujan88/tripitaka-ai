@@ -1,0 +1,4 @@
+# Ingestion is a batch job: no web server, exit when the runner finishes.
+spring:
+  main:
+    web-application-type: none
