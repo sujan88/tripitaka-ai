@@ -69,6 +69,32 @@ class AnswerAssemblerTest {
                 AnswerAssembler.assemble("conv", "q", new AnswerDraft(" ", null, null, null, null), retrieved));
     }
 
+    @Test
+    void marksTheAnswerAsAiAndKeepsAtMostThreeCleanFollowUps() {
+        var draft = new AnswerDraft("answer", null, List.of("c1"), null, null,
+                java.util.Arrays.asList("How fast does kamma ripen?", " ", null, "How fast does kamma ripen?",
+                        "What does the Abhidhamma add?", "x".repeat(201), "Is kamma fate?", "A fourth?"));
+
+        var response = AnswerAssembler.assemble("conv", "query", draft, retrieved);
+
+        assertEquals("ai", response.generatedBy());
+        assertEquals(List.of("How fast does kamma ripen?", "What does the Abhidhamma add?", "Is kamma fate?"),
+                response.followUps());
+    }
+
+    @Test
+    void citationsCarryTheirLayer() {
+        var commentary = Document.builder().id("a1").text("commentary text").metadata(Map.of(
+                "textId", "atta-ap-dhs-1", "title", "t", "nikaya", "n", "reference", "r",
+                "collection", "atthakatha-si")).build();
+        var draft = new AnswerDraft("answer", null, List.of("c1", "a1"), null, null);
+
+        var response = AnswerAssembler.assemble("conv", "q", draft, List.of(retrieved.get(0), commentary));
+
+        assertEquals(List.of("Sutta", "Commentary (Aṭṭhakathā)"),
+                response.citations().stream().map(c -> c.layer()).toList());
+    }
+
     private static Document passage(String id, String textId, String nikaya) {
         return Document.builder().id(id).text("passage text for " + textId).metadata(Map.of(
                 "textId", textId, "title", "Title " + textId, "nikaya", nikaya, "reference", textId + ":1.1")).build();

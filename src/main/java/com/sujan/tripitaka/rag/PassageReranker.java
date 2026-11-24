@@ -24,7 +24,7 @@ import java.util.Map;
 public class PassageReranker {
 
     private static final Logger log = LoggerFactory.getLogger(PassageReranker.class);
-    private static final int MAX_CANDIDATES = 70; // 50 sutta + 20 layer candidates; one Cohere search unit (≤100 docs)
+    private static final int MAX_CANDIDATES = 90; // 50 sutta + 20 layer + 12 key-text candidates; one Cohere search unit (≤100 docs)
     private static final int RATE_LIMIT_ATTEMPTS = 3;
     private static final long RATE_LIMIT_BACKOFF_MS = 3000;
 

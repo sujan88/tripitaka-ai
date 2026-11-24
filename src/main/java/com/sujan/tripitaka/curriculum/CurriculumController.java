@@ -112,7 +112,7 @@ public class CurriculumController {
                 true, lesson.reviewedBy());
     }
 
-    /** The Big questions, grouped by theme: the questions are curated, their answers are written by AI. */
+    /** The Dhamma questions, grouped by theme: the questions are curated, their answers are written by AI. */
     @GetMapping("/themes")
     public List<ThemeView> themes() {
         return curriculum.themes().stream()

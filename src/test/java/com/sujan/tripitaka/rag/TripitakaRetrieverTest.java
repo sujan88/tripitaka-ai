@@ -124,6 +124,42 @@ class TripitakaRetrieverTest {
     }
 
     @Test
+    void lessonKeyTextIsAlwaysInTheAnswer() {
+        var embeddings = new CountingEmbeddingModel();
+        var stores = new VectorStores(embeddings, TripitakaRetrieverTest::fakeStore);
+        var bm25 = mock(Bm25Store.class);
+        when(bm25.search(anyString(), anyString(), anyString(), anyInt())).thenAnswer(call ->
+                List.of(hit(call.getArgument(1), "k" + QUERIES.indexOf((String) call.getArgument(0)))));
+        var keyChunks = List.of(keyChunk("mn135-1"), keyChunk("mn135-2"), keyChunk("mn135-3"));
+        when(bm25.chunksOfText("sutta-en", "r1", "mn135")).thenReturn(keyChunks);
+        var expander = mock(QueryExpander.class);
+        var releases = mock(CorpusReleaseStore.class);
+        when(releases.current(anyString())).thenReturn(Optional.of("r1"));
+        var retriever = new TripitakaRetriever(stores, bm25, new PassageReranker(RestClient.create(), false, "m"),
+                expander, releases, 25, 0.25, 6, 1, 30000, 1, 20000);
+
+        var found = retriever.searchQueries(QUERIES, List.of("sutta-en"), java.util.Set.of("mn135"));
+
+        assertEquals(6, found.size());
+        var keyIds = found.stream().filter(d -> "mn135".equals(d.getMetadata().get("textId"))).map(Document::getId).toList();
+        assertEquals(List.of("mn135-1", "mn135-2"), keyIds);
+        assertEquals(List.of("keyText"), found.stream().filter(d -> keyIds.contains(d.getId()))
+                .map(d -> d.getMetadata().get("retrievedBy")).distinct().findFirst().orElseThrow());
+    }
+
+    @Test
+    void freeQuestionGetsNoKeyText() {
+        var found = retriever(new CountingEmbeddingModel()).searchQueries(QUERIES, COLLECTIONS);
+
+        assertFalse(found.stream().anyMatch(d -> "mn135".equals(d.getMetadata().get("textId"))));
+    }
+
+    private static Document keyChunk(String id) {
+        return Document.builder().id(id).text("key text " + id)
+                .metadata(Map.of("collection", "sutta-en", "release", "r1", "textId", "mn135")).build();
+    }
+
+    @Test
     void parallelSearchReturnsExactlyWhatSequentialSearchReturns() {
         for (int run = 0; run < 20; run++) {
             var sequential = retriever(new CountingEmbeddingModel(), 1).search(QUERIES.get(0), COLLECTIONS);

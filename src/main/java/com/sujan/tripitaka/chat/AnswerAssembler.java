@@ -4,6 +4,7 @@ import com.sujan.tripitaka.ingest.PassageChunker;
 import com.sujan.tripitaka.model.AnswerDraft;
 import com.sujan.tripitaka.model.AskResponse;
 import com.sujan.tripitaka.model.MentalModel;
+import com.sujan.tripitaka.rag.Layers;
 import org.springframework.ai.document.Document;
 
 import java.util.ArrayList;
@@ -23,6 +24,8 @@ import java.util.stream.Collectors;
 public final class  AnswerAssembler {
 
     private static final int EXCERPT_CHARS = 280;
+    private static final int MAX_FOLLOW_UPS = 3;
+    private static final int MAX_FOLLOW_UP_CHARS = 200;
 
     private AnswerAssembler() {
     }
@@ -51,7 +54,8 @@ public final class  AnswerAssembler {
                     String.valueOf(metadata.get("title")),
                     String.valueOf(metadata.get("nikaya")),
                     String.valueOf(metadata.get("reference")),
-                    excerpt(PassageChunker.withoutHeader(document.getText()))));
+                    excerpt(PassageChunker.withoutHeader(document.getText())),
+                    Layers.of(document)));
         }
         if (invented > 0) {
             unknowns.add(invented + " citation(s) did not match any retrieved passage and were removed.");
@@ -76,7 +80,20 @@ public final class  AnswerAssembler {
                 model,
                 model == null ? null : model.toMermaid(),
                 sourceDistribution(retrieved),
-                List.copyOf(unknowns));
+                List.copyOf(unknowns),
+                followUps(draft.followUps()),
+                AskResponse.GENERATED_BY_AI);
+    }
+
+    /** At most three distinct, non-blank, short questions. */
+    static List<String> followUps(List<String> proposed) {
+        return nullSafe(proposed).stream()
+                .filter(q -> q != null && !q.isBlank())
+                .map(String::trim)
+                .filter(q -> q.length() <= MAX_FOLLOW_UP_CHARS)
+                .distinct()
+                .limit(MAX_FOLLOW_UPS)
+                .toList();
     }
 
     static Map<String, Integer> sourceDistribution(List<Document> retrieved) {

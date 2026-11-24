@@ -35,6 +35,9 @@ public class TripitakaRetriever {
     private static final int PRIMARY_POOL = 50; // same candidates as a suttas-only search (top-k x 2)
     private static final int OTHER_POOL = 20;
     private static final int MAX_LAYER_PASSAGES = 3;
+    /** A lesson answer keeps at least this many passages from the lesson's key text. */
+    private static final int MIN_KEY_TEXT_PASSAGES = 2;
+    private static final int MAX_KEY_TEXT_CHUNKS = 12;
 
     private final VectorStores vectorStores;
     private final Bm25Store bm25Store;
@@ -106,6 +109,15 @@ public class TripitakaRetriever {
 
     /** Like {@link #search(String, List)} for searches already planned (see {@link QueryExpander#plan}). */
     public List<Document> searchQueries(List<String> queries, List<String> collections) {
+        return searchQueries(queries, collections, Set.of());
+    }
+
+    /**
+     * @param keyTextIds texts of the primary collection that must be in the answer (a lesson's key text, e.g.
+     *                   "mn135"): their chunks join the candidates, and at least {@link #MIN_KEY_TEXT_PASSAGES} are
+     *                   kept even if other passages rank higher. Empty for a free question.
+     */
+    public List<Document> searchQueries(List<String> queries, List<String> collections, Set<String> keyTextIds) {
         String primary = collections.get(0);
         Map<String, String> published = new java.util.LinkedHashMap<>();
         for (String collection : collections) {
@@ -163,20 +175,34 @@ public class TripitakaRetriever {
         // The reranker sees the question plus its expansions: a description ("the origin of the world") only
         // reaches the right sutta if the reranker also knows the name the expansion found ("Aggañña Sutta").
         String rerankQuery = String.join("\n", queries);
+        // A lesson's key text joins the candidates (after the search results, so without a reranker it never
+        // pushes them aside) and is guaranteed a place in the answer below.
+        List<Document> keyChunks = keyTextChunks(primary, published.get(primary), keyTextIds);
+        Set<String> keyIds = new java.util.HashSet<>(keyChunks.stream().map(Document::getId).toList());
         List<Document> merged;
-        List<Document> finalDocs;
+        List<Document> reranked;
+        List<Document> chosen;
         if (layered) {
             // Pool = best suttas + best of the other layers, ranked together in one rerank call; then every
             // sutta a suttas-only search would return is kept, plus only the layer passages that score as well.
             merged = new ArrayList<>(HybridResultRRFMerger.mergeAll(rankings, PRIMARY_POOL));
             merged.addAll(HybridResultRRFMerger.mergeAll(otherRankings, OTHER_POOL));
-            List<Document> reranked = reranker.rerank(rerankQuery, merged, merged.size());
-            finalDocs = tagOrigins(semanticIds, keywordIds,
-                    Layers.suttasPlusRelevantLayers(reranked, primary, answerChunks, MAX_LAYER_PASSAGES));
+            merged = KeyTexts.appendNew(merged, keyChunks);
+            reranked = reranker.rerank(rerankQuery, merged, merged.size());
+            chosen = Layers.suttasPlusRelevantLayers(reranked, primary, answerChunks, MAX_LAYER_PASSAGES);
         } else {
-            merged = HybridResultRRFMerger.mergeAll(rankings.isEmpty() ? otherRankings : rankings, topK * 2);
-            finalDocs = tagOrigins(semanticIds, keywordIds, reranker.rerank(rerankQuery, merged, answerChunks));
+            merged = KeyTexts.appendNew(
+                    HybridResultRRFMerger.mergeAll(rankings.isEmpty() ? otherRankings : rankings, topK * 2), keyChunks);
+            if (keyChunks.isEmpty()) {
+                reranked = reranker.rerank(rerankQuery, merged, answerChunks);
+                chosen = reranked;
+            } else {
+                reranked = reranker.rerank(rerankQuery, merged, merged.size());
+                chosen = reranked.subList(0, Math.min(answerChunks, reranked.size()));
+            }
         }
+        List<Document> finalDocs = tagOrigins(semanticIds, keywordIds, keyIds,
+                KeyTexts.ensure(chosen, reranked, keyTextIds, MIN_KEY_TEXT_PASSAGES));
 
         log.info("Retrieval collections={} queries={} searches={} semantic={} bm25={} merged={} final={} searchMs={} "
                         + "retrievalMs={} texts={}",
@@ -246,7 +272,27 @@ public class TripitakaRetriever {
         }
     }
 
-    private static List<Document> tagOrigins(Set<String> semanticIds, Set<String> keywordIds, List<Document> docs) {
+    /** The first chunks of each key text in the primary collection (at most {@link #MAX_KEY_TEXT_CHUNKS} in all). */
+    private List<Document> keyTextChunks(String collection, String release, Set<String> keyTextIds) {
+        if (keyTextIds.isEmpty() || release == null) {
+            return List.of();
+        }
+        List<Document> chunks = new ArrayList<>();
+        for (String textId : keyTextIds.stream().sorted().toList()) {
+            try {
+                chunks.addAll(usable(bm25Store.chunksOfText(collection, release, textId)));
+            } catch (RuntimeException failure) {
+                log.warn("Key text lookup failed textId={} errorType={}", textId, failure.getClass().getSimpleName());
+            }
+        }
+        if (chunks.isEmpty()) {
+            log.warn("Key texts {} not found in collection={}", keyTextIds, collection);
+        }
+        return chunks.stream().limit(MAX_KEY_TEXT_CHUNKS).toList();
+    }
+
+    private static List<Document> tagOrigins(Set<String> semanticIds, Set<String> keywordIds, Set<String> keyIds,
+                                             List<Document> docs) {
         return docs.stream().map(document -> {
             var origins = new ArrayList<String>();
             if (semanticIds.contains(document.getId())) {
@@ -254,6 +300,9 @@ public class TripitakaRetriever {
             }
             if (keywordIds.contains(document.getId())) {
                 origins.add("bm25");
+            }
+            if (keyIds.contains(document.getId())) {
+                origins.add("keyText");
             }
             var metadata = new HashMap<>(document.getMetadata());
             metadata.put("retrievedBy", origins);

@@ -1,5 +1,8 @@
 package com.sujan.tripitaka.chat;
 
+import com.sujan.tripitaka.curriculum.Curriculum.Lesson;
+import com.sujan.tripitaka.curriculum.CurriculumNotFoundException;
+import com.sujan.tripitaka.curriculum.CurriculumRepository;
 import com.sujan.tripitaka.model.AnswerDraft;
 import com.sujan.tripitaka.model.AskRequest;
 import com.sujan.tripitaka.model.AskResponse;
@@ -25,6 +28,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -47,18 +52,32 @@ public class AskService {
     private final List<String> sinhalaLayers;
     private final String answerSystemPrompt;
     private final String sinhalaInstructions;
+    private final Map<String, String> depthInstructions;
+    private final String lessonTemplate;
+    private final CurriculumRepository curriculum;
 
     public AskService(@Qualifier("answerClient") ChatClient answerClient,
                       ChatMemory chatMemory,
                       TripitakaRetriever retriever,
                       QueryExpander queryExpander,
+                      CurriculumRepository curriculum,
                       @Value("${rag.collection}") String collection,
                       @Value("${rag.sinhala.collection}") String sinhalaCollection,
                       @Value("${rag.sinhala.layers:}") List<String> sinhalaLayers,
                       @Value("classpath:prompts/answer-system.md") Resource answerPrompt,
-                      @Value("classpath:prompts/answer-language-si.md") Resource sinhalaPrompt) throws IOException {
+                      @Value("classpath:prompts/answer-language-si.md") Resource sinhalaPrompt,
+                      @Value("classpath:prompts/answer-depth-simple.md") Resource simplePrompt,
+                      @Value("classpath:prompts/answer-depth-deep.md") Resource deepPrompt,
+                      @Value("classpath:prompts/answer-depth-practice.md") Resource practicePrompt,
+                      @Value("classpath:prompts/answer-lesson.md") Resource lessonPrompt) throws IOException {
         this.answerClient = answerClient;
         this.queryExpander = queryExpander;
+        this.curriculum = curriculum;
+        this.depthInstructions = Map.of(
+                "simple", simplePrompt.getContentAsString(StandardCharsets.UTF_8),
+                "deep", deepPrompt.getContentAsString(StandardCharsets.UTF_8),
+                "practice", practicePrompt.getContentAsString(StandardCharsets.UTF_8));
+        this.lessonTemplate = lessonPrompt.getContentAsString(StandardCharsets.UTF_8);
         this.chatMemory = chatMemory;
         this.retriever = retriever;
         this.collection = collection;
@@ -72,21 +91,25 @@ public class AskService {
         long started = System.nanoTime();
         String conversationId = request.conversationId() == null
                 ? UUID.randomUUID().toString() : request.conversationId();
-        // English stays the default. Sinhala searches its suttas first, plus (unless "suttas only") the
-        // Abhidhamma, commentaries and Visuddhimagga; the suttas stay the primary source.
+        // English stays the default. Sinhala searches its suttas first, plus (unless "suttas only", or a depth
+        // other than "deep") the Abhidhamma, commentaries and Visuddhimagga; the suttas stay the primary source.
         List<String> targetCollections = new ArrayList<>(List.of(request.sinhala() ? sinhalaCollection : collection));
-        if (request.sinhala() && !request.suttasOnly()) {
+        if (request.sinhala() && request.includeLayers()) {
             targetCollections.addAll(sinhalaLayers);
         }
+        Lesson lesson = request.lessonId() == null ? null : curriculum.lesson(request.lessonId())
+                .orElseThrow(() -> new CurriculumNotFoundException("lesson", request.lessonId()));
+        Set<String> keyTextIds = lesson == null ? Set.of() : Set.copyOf(lesson.textIds());
 
         // One model call turns the question (rewritten first if it is a follow-up) into the searches to run.
         QueryPlan plan = queryExpander.plan(request.question(), recentConversation(conversationId));
         String searchQuery = plan.standaloneQuery();
-        List<Document> passages = retriever.withContext(retriever.searchQueries(plan.queries(), targetCollections));
+        List<Document> passages = retriever.withContext(
+                retriever.searchQueries(plan.queries(), targetCollections, keyTextIds));
 
         // Passages go in the system message so chat memory stores only the question, not the context.
         String system = answerSystemPrompt.replace("{{PASSAGES}}", formatPassages(passages))
-                + (request.sinhala() ? "\n" + sinhalaInstructions : "");
+                + instructions(request, lesson);
 
         var result = answerClient.prompt()
                 .system(system)
@@ -101,10 +124,27 @@ public class AskService {
                 result.getResponse() == null ? null : result.getResponse().getMetadata().getUsage());
         AskResponse response = AnswerAssembler.assemble(conversationId, searchQuery, result.entity(), passages);
 
-        log.info("Answered conversation={} passages={} citations={} durationMs={}",
-                conversationId, passages.size(), response.citations().size(),
+        log.info("Answered conversation={} depth={} lesson={} passages={} citations={} durationMs={}",
+                conversationId, request.depthOrDefault(), request.lessonId(), passages.size(), response.citations().size(),
                 (System.nanoTime() - started) / 1_000_000);
         return response;
+    }
+
+    /** Depth, lesson and language instructions appended to the system prompt, in that order. */
+    String instructions(AskRequest request, Lesson lesson) {
+        var extra = new StringBuilder();
+        String depth = depthInstructions.get(request.depthOrDefault());
+        if (depth != null) {
+            extra.append('\n').append(depth);
+        }
+        if (lesson != null) {
+            extra.append('\n').append(lessonTemplate.replace("{{TITLE}}", lesson.title())
+                    .replace("{{KEY_TEXT}}", lesson.keyText()));
+        }
+        if (request.sinhala()) {
+            extra.append('\n').append(sinhalaInstructions);
+        }
+        return extra.toString();
     }
 
     /** The last few turns as text, so a follow-up ("explain the third one") can be made standalone; null if none. */

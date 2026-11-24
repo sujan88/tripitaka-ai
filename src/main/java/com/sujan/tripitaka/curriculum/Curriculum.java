@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The curriculum as written in {@code src/main/resources/curriculum}: paths of lessons, the Big questions and the
+ * The curriculum as written in {@code src/main/resources/curriculum}: paths of lessons, the Dhamma questions and the
  * daily suttas. Everything here is curated by people (never generated); {@code reviewedBy} names the teacher who
  * checked an item, and stays null until someone has.
  */

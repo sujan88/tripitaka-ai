@@ -134,7 +134,7 @@ where().then(state => Promise.all([continueCard(state), studyCard(state)])).catc
 });
 dailyCard();
 
-// ---------- Big questions ----------
+// ---------- Dhamma questions ----------
 
 getJson('/api/themes').then(themes => {
   document.getElementById('themes').replaceChildren(...themes.map(theme => h('div', { class: 'theme-card' },
