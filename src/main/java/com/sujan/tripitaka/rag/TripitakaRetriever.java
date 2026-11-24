@@ -96,6 +96,12 @@ public class TripitakaRetriever {
         // Every expanded query runs both searches in every collection. The primary (sutta) collection and the
         // other layers are fused separately, so dense commentary can never push the suttas out of the pool.
         List<String> queries = queryExpander.expand(query);
+        try {
+            vectorStores.prepareQueries(queries); // one embedding call for all queries x collections
+        } catch (RuntimeException failure) {
+            log.warn("Batch query embedding failed; each search embeds its own query errorType={}",
+                    failure.getClass().getSimpleName());
+        }
         List<List<Document>> rankings = new ArrayList<>();
         List<List<Document>> otherRankings = new ArrayList<>();
         Set<String> semanticIds = new java.util.HashSet<>();
