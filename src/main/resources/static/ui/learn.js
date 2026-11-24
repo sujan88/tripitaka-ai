@@ -100,8 +100,43 @@ export const NAV = [
   { id: 'home', label: 'Home', href: '/' },
   { id: 'paths', label: 'Learning paths', href: '/#paths' },
   { id: 'ask', label: 'Ask', href: '/lesson.html' },
+  { id: 'saved', label: 'Saved', href: '/saved.html' },
   { id: 'chat', label: 'Conversation', href: '/chat.html' },
 ];
+
+// Bottom navigation on phones (docs/design-learning-ui/Mobile.dc.html): Home · Paths · Ask · Saved.
+const BOTTOM_NAV = [
+  { id: 'home', label: 'Home', href: '/', icon: 'M4 11l8-7 8 7v9h-5v-6H9v6H4z' },
+  { id: 'paths', label: 'Paths', href: '/#paths', icon: 'M5 19c3-6 11-2 14-14M5 19h4M19 5v4' },
+  { id: 'ask', label: 'Ask', href: '/lesson.html', icon: 'M4 5h16v11H9l-5 4z' },
+  { id: 'saved', label: 'Saved', href: '/saved.html', icon: 'M6 4h12v16l-6-4-6 4z' },
+];
+
+function navIcon(d) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('width', '22');
+  svg.setAttribute('height', '22');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1.8');
+  path.setAttribute('stroke-linejoin', 'round');
+  path.setAttribute('stroke-linecap', 'round');
+  svg.append(path);
+  return svg;
+}
+
+/** Adds the phone bottom navigation (hidden on wider screens by learn.css). */
+export function renderBottomNav(active) {
+  document.querySelector('.bottom-nav')?.remove();
+  document.body.classList.add('has-bottom-nav');
+  document.body.append(h('nav', { class: 'bottom-nav', 'aria-label': 'Main' },
+    BOTTOM_NAV.map(item => h('a', { href: item.href, 'aria-current': item.id === active ? 'page' : null },
+      navIcon(item.icon), item.label))));
+}
 
 /** Fills <header id="site-header"> with the brand, main navigation and language switch. */
 export function renderHeader(active) {
@@ -113,7 +148,9 @@ export function renderHeader(active) {
       NAV.map(item => h('a', { href: item.href, 'aria-current': item.id === active ? 'page' : null }, item.label))),
     h('div', { class: 'lang-switch', role: 'group', 'aria-label': 'Language' },
       h('a', { href: '/', 'aria-current': 'true', lang: 'en' }, 'English'),
-      h('a', { href: '/si.html', lang: 'si' }, 'සිංහල'))));
+      h('a', { href: '/si.html', lang: 'si', 'aria-label': 'සිංහල (Sinhala)' },
+        h('span', { class: 'long' }, 'සිංහල'), h('span', { class: 'short', 'aria-hidden': 'true' }, 'සිං')))));
+  renderBottomNav(active);
 }
 
 export function errorBox(message) {

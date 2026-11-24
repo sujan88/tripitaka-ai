@@ -240,3 +240,78 @@ aside .card h2 { font-size: 16px; }
 .follow-up-form .text-input { font-size: 15px; padding: 12px; border-radius: 10px; }
 .turn-q { font-size: 20px; }
 .unknowns { margin: 0; padding-left: 20px; color: var(--muted); font-size: 15px; }
+
+/* Phone layout (docs/design-learning-ui/Mobile.dc.html) */
+.bottom-nav { display: none; }
+.lang-switch .short { display: none; }
+@media (max-width: 720px) {
+  body.has-bottom-nav { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .bottom-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; left: 0; right: 0;
+                bottom: 0; z-index: 10; border-top: 1px solid var(--border); background: var(--surface);
+                padding: 6px 8px calc(10px + env(safe-area-inset-bottom)); }
+  .bottom-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+                  min-height: 48px; color: var(--original-ink); text-decoration: none; font-size: 12px; }
+  .bottom-nav a[aria-current="page"] { color: var(--accent-ink); font-weight: 600; }
+
+  .site-header .inner { padding: 12px 16px; justify-content: space-between; gap: 12px; }
+  .main-nav { display: none; }
+  .brand { font-size: 18px; }
+  .brand svg { display: none; }
+  .lang-switch { border-color: var(--border-strong); }
+  .lang-switch a[lang="en"] { display: none; }
+  .lang-switch a { min-height: 40px; display: inline-flex; align-items: center; padding: 0 12px; }
+  .lang-switch .long { display: none; }
+  .lang-switch .short { display: inline; font-size: 17px; }
+
+  main.page, main.page.tight { padding: 24px 16px 24px; gap: 20px; }
+  .page-title { font-size: 26px; }
+  .section-title { font-size: 20px; }
+  .lead { font-size: 16px; }
+  .card { padding: 18px; }
+  .card h2 { font-size: 18px; }
+  .ask-form .text-input { flex-basis: 100%; padding: 14px; }
+  .ask-form .btn-primary { flex: 1 1 100%; min-height: 48px; }
+  .legend { font-size: 12px; }
+
+  /* Home: ask, continue, paths, Dhamma questions; then today's sutta and your study. */
+  #where { display: contents; }
+  #ask-section { order: 1; }
+  #continue-card { order: 2; }
+  #paths { order: 3; gap: 10px !important; }
+  #questions { order: 4; gap: 10px !important; }
+  #daily-card { order: 5; }
+  #study-card { order: 6; }
+  main.page > .site-footer { order: 7; }
+  #paths .section-head p, #questions .section-head p { font-size: 14px !important; }
+  .grid-paths { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 4px; scroll-snap-type: x proximity;
+                margin-inline: -16px; padding-inline: 16px; }
+  .path-card { flex: 0 0 168px; padding: 14px; gap: 6px; border-radius: 14px; scroll-snap-align: start; }
+  .path-card h3 { font-size: 15px; }
+  .path-card .blurb, .path-card .faint, .path-card .row > span:last-child { display: none; }
+  .path-card .row { justify-content: flex-start; }
+  .path-card .progress { margin-top: 6px; }
+  .path-card .status { font-size: 12px; }
+  #level-filter { flex-wrap: nowrap; overflow-x: auto; margin-inline: -16px; padding-inline: 16px; }
+  #level-filter .toggle { flex: none; }
+  .grid-themes { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .theme-card { padding: 14px; }
+  .theme-card .question-link, #questions .question-link { min-height: 48px; }
+
+  /* Path page */
+  .lesson-step { padding: 14px; gap: 12px; }
+  .step-dot { flex-basis: 32px; height: 32px; }
+  .two-col { gap: 20px; }
+
+  /* Lesson page */
+  .lesson-bar .inner { padding: 10px 16px; }
+  .lesson-bar .progress { order: 3; flex-basis: 100%; }
+  .lesson-main { padding: 20px 16px 24px; gap: 20px; }
+  .lesson-title { font-size: 24px; }
+  .ai-card { padding: 18px; }
+  .prose { font-size: 16px; }
+  .mm-node { flex-basis: 120px; padding: 10px 12px; }
+  .lesson-nav .btn { flex: 1 1 100%; }
+  .toggle-group[aria-label="Explanation depth"] { flex-wrap: nowrap; overflow-x: auto; margin-inline: -16px;
+                                                  padding-inline: 16px; }
+  .toggle-group[aria-label="Explanation depth"] .toggle { flex: none; }
+}

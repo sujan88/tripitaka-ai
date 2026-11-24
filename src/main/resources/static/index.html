@@ -13,7 +13,7 @@
   <header id="site-header"></header>
 
   <main class="page">
-    <section aria-labelledby="ask-h" class="section-head" style="gap: 14px">
+    <section aria-labelledby="ask-h" class="section-head" id="ask-section" style="gap: 14px">
       <h1 id="ask-h" class="page-title">Learn the Dhamma, step by step</h1>
       <p class="lead">Follow a guided path, or ask any question. Every answer cites the suttas it comes from.</p>
       <form id="ask-form" class="ask-form" action="/lesson.html" method="get">
@@ -25,7 +25,7 @@
       <div class="legend" id="legend"></div>
     </section>
 
-    <section aria-label="Where you are" class="grid-3">
+    <section aria-label="Where you are" class="grid-3" id="where">
       <article class="card" id="continue-card"><div class="skeleton"></div></article>
       <article class="card" id="daily-card"><div class="skeleton"></div></article>
       <article class="card" id="study-card"><div class="skeleton"></div></article>
@@ -44,7 +44,7 @@
       <div class="grid-paths" id="path-grid" aria-live="polite"></div>
     </section>
 
-    <section aria-labelledby="q-h" style="display: flex; flex-direction: column; gap: 18px">
+    <section aria-labelledby="q-h" id="questions" style="display: flex; flex-direction: column; gap: 18px">
       <div class="section-head">
         <div class="title-row" id="questions-title">
           <h2 id="q-h" class="section-title">Dhamma questions, answered from the texts</h2>

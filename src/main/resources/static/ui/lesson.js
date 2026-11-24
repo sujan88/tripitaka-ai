@@ -6,7 +6,7 @@ import { marked } from 'https://cdn.jsdelivr.net/npm/marked@14/lib/marked.esm.js
 import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.es.mjs';
 import {
   aiBadge, curatedBadge, errorBox, getJson, h, lessonUrl, originalBadge, param, pathUrl, progress, progressBar,
-  renderHeader,
+  renderBottomNav, renderHeader,
 } from '/ui/learn.js';
 
 const page = document.getElementById('lesson-page');
@@ -330,6 +330,7 @@ function lessonBar(lesson) {
     h('a', { class: 'back', href: pathUrl(lesson.path.id) }, '‹ ', lesson.path.title),
     progressBar(lesson.number, lesson.of, 'Path progress'),
     h('span', { class: 'muted', style: { fontSize: '14px' } }, `Lesson ${lesson.number} of ${lesson.of}`)));
+  renderBottomNav('paths');
 }
 
 // ---------- Modes ----------

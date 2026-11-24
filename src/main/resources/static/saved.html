@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Saved · Tripitaka companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Sinhala:wght@400;500&display=swap">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 28 28%22%3E%3Ccircle cx=%2214%22 cy=%2214%22 r=%2212%22 fill=%22none%22 stroke=%22%23B4560F%22 stroke-width=%222%22/%3E%3Cpath d=%22M14 6v16M6 14h16M8.3 8.3l11.4 11.4M19.7 8.3L8.3 19.7%22 stroke=%22%23B4560F%22 stroke-width=%221.5%22/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/ui/learn.css">
+</head>
+<body>
+  <header id="site-header"></header>
+  <main class="page tight">
+    <section class="section-head">
+      <h1 class="page-title">Saved</h1>
+      <p class="lead">Your private notes and the lessons you have finished. They are kept in this browser only.</p>
+    </section>
+    <section aria-labelledby="notes-h" style="display: flex; flex-direction: column; gap: 12px">
+      <h2 id="notes-h" class="section-title">Your notes</h2>
+      <div id="notes" style="display: flex; flex-direction: column; gap: 12px"></div>
+    </section>
+    <section aria-labelledby="done-h" style="display: flex; flex-direction: column; gap: 12px">
+      <h2 id="done-h" class="section-title">Lessons done</h2>
+      <div id="done" style="display: flex; flex-direction: column; gap: 8px"></div>
+    </section>
+  </main>
+  <script type="module" src="/ui/saved.js"></script>
+</body>
+</html>
