@@ -1,0 +1,14 @@
+# Curated path from the design. Its lessons are not written yet (plannedLessons is the intended count);
+# the path is listed but cannot be started until lessons are added and reviewed.
+id: starting-meditation
+order: 2
+title: "Starting meditation"
+level: beginner
+blurb: "Breath meditation and loving-kindness, with simple daily practice."
+keyTexts: [MN 118, Snp 1.8]
+minutesPerLesson: 15
+plannedLessons: 6
+reviewedBy: null
+before: [new-to-buddhism]
+after: [mindfulness-to-awakening]
+lessons: []

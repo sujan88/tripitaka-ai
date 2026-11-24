@@ -1,0 +1,14 @@
+# Curated path from the design. Its lessons are not written yet (plannedLessons is the intended count);
+# the path is listed but cannot be started until lessons are added and reviewed.
+id: rebirth-and-realms
+order: 4
+title: "Rebirth and the 31 realms"
+level: intermediate
+blurb: "What continues without a soul, the realms, and why the round is so long."
+keyTexts: [MN 41, MN 136, SN 15]
+minutesPerLesson: 15
+plannedLessons: 6
+reviewedBy: null
+before: [understanding-kamma]
+after: [dependent-origination]
+lessons: []

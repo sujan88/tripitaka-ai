@@ -1,0 +1,10 @@
+# "Today's sutta" on the home page: one entry per day, in turn. Curated; the text is a paraphrase, not a quotation.
+suttas:
+  - id: dhp-1-2
+    title: Dhammapada 1–2
+    text: >-
+      Mind comes first: actions done with a corrupt mind bring suffering, and actions done with a clear mind bring
+      happiness.
+    note: Paraphrase · Khuddaka Nikāya
+    question: What do the first two verses of the Dhammapada teach about the mind?
+    reviewedBy: null

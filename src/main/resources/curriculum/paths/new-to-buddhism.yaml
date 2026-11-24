@@ -1,0 +1,14 @@
+# Curated path from the design. Its lessons are not written yet (plannedLessons is the intended count);
+# the path is listed but cannot be started until lessons are added and reviewed.
+id: new-to-buddhism
+order: 1
+title: "New to Buddhism"
+level: beginner
+blurb: "Who the Buddha was, the Four Noble Truths, the five precepts and taking refuge."
+keyTexts: [SN 56.11, AN 8.39]
+minutesPerLesson: 15
+plannedLessons: 6
+reviewedBy: null
+before: []
+after: [starting-meditation, understanding-kamma, not-self]
+lessons: []

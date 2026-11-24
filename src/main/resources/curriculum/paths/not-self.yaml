@@ -1,0 +1,14 @@
+# Curated path from the design. Its lessons are not written yet (plannedLessons is the intended count);
+# the path is listed but cannot be started until lessons are added and reviewed.
+id: not-self
+order: 5
+title: "Not-self (anattā)"
+level: intermediate
+blurb: "The five aggregates and why none of them is a self."
+keyTexts: [SN 22.59, MN 22]
+minutesPerLesson: 15
+plannedLessons: 5
+reviewedBy: null
+before: [new-to-buddhism]
+after: [dependent-origination]
+lessons: []

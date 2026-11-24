@@ -1,0 +1,26 @@
+# Big questions on the home page, grouped by theme. The questions are curated; each one opens an AI answer.
+themes:
+  - id: kamma
+    name: Kamma
+    questions:
+      - What is kamma, and is it fate?
+      - Why do good people suffer?
+      - Can bad kamma be changed?
+  - id: death-and-rebirth
+    name: Death and rebirth
+    questions:
+      - What is reborn if there is no soul?
+      - What happens at the moment of death?
+      - Do the suttas describe past lives?
+  - id: the-mind
+    name: The mind
+    questions:
+      - What is the mind made of?
+      - Where do thoughts and feelings come from?
+      - How does craving arise?
+  - id: practice
+    name: Practice
+    questions:
+      - How do I begin breath meditation?
+      - How can I practise loving-kindness daily?
+      - What are the five precepts?

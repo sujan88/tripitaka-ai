@@ -1,0 +1,14 @@
+# Curated path from the design. Its lessons are not written yet (plannedLessons is the intended count);
+# the path is listed but cannot be started until lessons are added and reviewed.
+id: mindfulness-to-awakening
+order: 8
+title: "Mindfulness to awakening"
+level: advanced
+blurb: "The four foundations of mindfulness and the seven factors of awakening."
+keyTexts: [MN 10, SN 46]
+minutesPerLesson: 15
+plannedLessons: 7
+reviewedBy: null
+before: [starting-meditation]
+after: []
+lessons: []

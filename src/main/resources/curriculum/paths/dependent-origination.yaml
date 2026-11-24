@@ -1,0 +1,14 @@
+# Curated path from the design. Its lessons are not written yet (plannedLessons is the intended count);
+# the path is listed but cannot be started until lessons are added and reviewed.
+id: dependent-origination
+order: 6
+title: "Dependent origination"
+level: advanced
+blurb: "The twelve links: how suffering arises and how it ends."
+keyTexts: [SN 12.1, SN 12.2, DN 15]
+minutesPerLesson: 15
+plannedLessons: 8
+reviewedBy: null
+before: [understanding-kamma, not-self]
+after: [abhidhamma-mind]
+lessons: []

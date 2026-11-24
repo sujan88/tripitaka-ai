@@ -1,0 +1,14 @@
+# Curated path from the design. Its lessons are not written yet (plannedLessons is the intended count);
+# the path is listed but cannot be started until lessons are added and reviewed.
+id: abhidhamma-mind
+order: 7
+title: "The mind in the Abhidhamma"
+level: advanced
+blurb: "Consciousness (citta), mental factors (cetasika) and how a moment of mind works."
+keyTexts: [Dhammasaṅgaṇī, commentaries]
+minutesPerLesson: 15
+plannedLessons: 8
+reviewedBy: null
+before: [dependent-origination]
+after: []
+lessons: []

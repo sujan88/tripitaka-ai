@@ -1,0 +1,147 @@
+# Curated path. Sutta picks, lesson text and quizzes are drafts until a teacher reviews them:
+# set reviewedBy on the path, a lesson or a quiz once it has been checked.
+id: understanding-kamma
+order: 3
+title: Understanding kamma
+level: intermediate
+blurb: Intention, why people differ, kamma is not fate, and the end of kamma.
+description: >-
+  What the Buddha meant by kamma, why it is intention and not fate, how it shapes this life and the next,
+  and how it comes to an end.
+keyTexts: [AN 6.63, MN 135, AN 3.61]
+minutesPerLesson: 15
+reviewedBy: null
+outcomes:
+  - Why intention (cetanā) is what makes an act kamma
+  - Why kamma is not fate or a god’s will
+  - How actions shape this life and future births
+  - What it means to go beyond kamma
+before: [new-to-buddhism]
+after: [rebirth-and-realms, dependent-origination]
+questions:
+  - Is everything that happens to me my kamma?
+  - Can merit be shared with the departed?
+lessons:
+  - id: kamma-intention
+    title: "What kamma means: intention"
+    keyText: AN 6.63
+    textIds: [an6.63]
+    question: What does the Buddha mean when he says that intention is kamma?
+    reflectPrompt: >-
+      Think of something you did today without much thought. Was there an intention behind it after all?
+    quiz:
+      question: In AN 6.63, what does the Buddha call kamma (deeds)?
+      options:
+        - Fate decided at birth
+        - Intention
+        - Rituals done at a temple
+      answer: 1
+      explanation: >-
+        “It is intention that I call deeds. For after making a choice one acts by way of body, speech, and mind.”
+
+  - id: kamma-not-fate
+    title: Kamma is not fate
+    keyText: AN 3.61
+    textIds: [an3.61]
+    question: Why does the Buddha reject the view that everything we experience is caused by past deeds?
+    reflectPrompt: >-
+      When something goes wrong, do you tend to blame the past, other people, or chance? What would change if you
+      looked at what you can choose now?
+    quiz:
+      question: Which view does the Buddha reject in AN 3.61?
+      options:
+        - That everything a person experiences is because of past deeds
+        - That intentional deeds have results
+        - That one can give up unskilful deeds
+      answer: 0
+      explanation: >-
+        He rejects three tenets: that everything we experience comes from past deeds, from God’s creation, or from
+        no cause at all. Each one, taken to its conclusion, leaves no room for choosing what to do now.
+
+  - id: kamma-born-different
+    title: Why are people born different?
+    keyText: MN 135
+    textIds: [mn135]
+    question: Why are people born different, according to MN 135?
+    reflectPrompt: >-
+      Think of one habit of speech you repeat every day. What intention usually sits behind it?
+    quiz:
+      question: In MN 135, what does the Buddha say leads to a long life?
+      options:
+        - Being born into a good family
+        - Refraining from killing living beings
+        - Making offerings at a temple
+      answer: 1
+      explanation: >-
+        Giving up killing, living with sympathy for all living beings, leads towards a long life; killing leads
+        towards a short one.
+
+  - id: kamma-four-kinds
+    title: Four kinds of kamma
+    keyText: AN 4.232
+    textIds: [an4.232]
+    question: What are the four kinds of kamma the Buddha describes in AN 4.232?
+    reflectPrompt: >-
+      Look back on yesterday. Which of your actions were clearly bright, which were dark, and which were mixed?
+    quiz:
+      question: According to AN 4.232, what do deeds that are neither dark nor bright lead to?
+      options:
+        - A rebirth in heaven
+        - Mixed results, pleasant and painful
+        - The ending of deeds
+      answer: 2
+      explanation: >-
+        Neither dark nor bright deeds, with neither dark nor bright results, lead to the ending of deeds.
+
+  - id: kamma-rebirth
+    title: Kamma and rebirth
+    keyText: MN 136
+    textIds: [mn136]
+    question: How does MN 136 explain someone who did bad deeds being reborn in a good place?
+    reflectPrompt: >-
+      Why might it matter what state of mind you are in at the end of a day, or at the end of a life?
+    quiz:
+      question: In MN 136, why can someone who did bad deeds still be reborn in a good place?
+      options:
+        - A good deed done earlier or later, or right view taken up at the time of death
+        - Kamma has no results after death
+        - A god forgives the deed
+      answer: 0
+      explanation: >-
+        The Buddha explains that a person’s rebirth depends on other deeds done earlier or later, or on the view
+        they take up at the time of death, so no single deed tells the whole story.
+
+  - id: kamma-merit
+    title: "Merit: giving, virtue, meditation"
+    keyText: AN 8.36
+    textIds: [an8.36]
+    question: What are the three grounds for making merit in AN 8.36, and how do they differ?
+    reflectPrompt: >-
+      Which of the three, giving, ethical conduct or meditation, comes easiest to you, and which could you practise
+      a little more this week?
+    quiz:
+      question: What are the three grounds for making merit in AN 8.36?
+      options:
+        - Chanting, offerings and pilgrimage
+        - Study, debate and retreat
+        - Giving, ethical conduct and meditation
+      answer: 2
+      explanation: “Giving, ethical conduct, and meditation are all grounds for making merit.”
+
+  - id: kamma-ending
+    title: The kamma that ends kamma
+    keyText: MN 57
+    textIds: [mn57]
+    question: In MN 57, what is the kamma that leads to the ending of kamma?
+    reflectPrompt: >-
+      What would it mean to act well without holding on to the good results for yourself?
+    quiz:
+      question: In MN 57, what are the deeds that lead to the ending of deeds?
+      options:
+        - The intention to give up dark, bright, and mixed deeds
+        - Living like a dog, as the ascetic in the sutta did
+        - Doing only bright deeds
+      answer: 0
+      explanation: >-
+        “It’s the intention to give up dark deeds with dark results, bright deeds with bright results, and both dark
+        and bright deeds with both dark and bright results.”
