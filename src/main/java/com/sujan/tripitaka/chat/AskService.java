@@ -174,7 +174,7 @@ public class AskService {
      */
     String cacheKey(AskRequest request, List<String> collections, Lesson lesson) {
         var parts = new ArrayList<>(List.of(answerFingerprint, AnswerCache.normalize(request.question()),
-                String.valueOf(request.language()), request.depthOrDefault(),
+                request.sinhala() ? "si" : "en", request.depthOrDefault(),
                 lesson == null ? "-" : lesson.id() + "|" + lesson.title() + "|" + lesson.keyText() + "|" + lesson.textIds()));
         for (String c : collections) {
             parts.add(c + "@" + releases.current(c).orElse("none"));
