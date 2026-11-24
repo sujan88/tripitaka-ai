@@ -122,8 +122,11 @@ Response shape (shared by web and the future mobile client):
 ```bash
 ./mvnw verify            # unit tests only, no network
 set -a; source .env; set +a
-./mvnw verify -Pevals -DargLine="-Deval.pauseMs=7000"   # + live evals (Qdrant, OPENAI_API_KEY, collections ingested)
+./mvnw verify -Pevals -DargLine="-Deval.pauseMs=7000"   # + live retrieval evals, about $0.40
+./mvnw verify -Pevals -DargLine="-Deval.pauseMs=7000 -Deval.answers=true"   # + answer evals, about $5
 ```
+
+The retrieval evals need Qdrant, `OPENAI_API_KEY` and the collections ingested. The answer evals (faithfulness, citation precision, judge calibration) cost more, so they run only with `-Deval.answers=true`.
 
 The live evals run the golden question sets (English, Sinhala, Sinhala held-out, deep karma/rebirth questions):
 

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.document.Document;
@@ -39,12 +40,15 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * </ul>
  * Scores go to {@link EvalReport}, which fails the run on a regression. A fixed calibration set first checks that
  * the judge accepts a faithful answer and rejects invented, contradicted and misattributed claims.
- * Run with: ./mvnw verify -Pevals (costs answer and judge calls; -Deval.judgeModel=... to change the judge).
+ * Run with: ./mvnw verify -Pevals -DargLine="-Deval.answers=true" (about $5: answer and judge calls;
+ * -Deval.judgeModel=... to change the judge). Plain -Pevals runs only the retrieval evals (about $0.40).
  */
 @Tag("eval")
 @SpringBootTest(properties = "rag.answer-cache.enabled=false") // evals measure fresh answers
 @ExtendWith(EvalReport.class)
 @EnabledIfEnvironmentVariable(named = "OPENAI_API_KEY", matches = ".+")
+// Costs about $5 a run (answers plus judge calls), so it only runs when asked: -Deval.answers=true
+@EnabledIfSystemProperty(named = "eval.answers", matches = "true")
 class AnswerEvalTest {
 
     static final double PRECISION_PASS = 0.75;
