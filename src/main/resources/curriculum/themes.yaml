@@ -6,21 +6,45 @@ themes:
       - What is kamma, and is it fate?
       - Why do good people suffer?
       - Can bad kamma be changed?
+    si:
+      name: "කර්මය"
+      questions:
+        - "කර්මය යනු කුමක්ද, එය ඉරණමද?"
+        - "යහපත් මිනිසුන් දුක් විඳින්නේ ඇයි?"
+        - "අකුසල කර්ම වෙනස් කළ හැකිද?"
   - id: death-and-rebirth
     name: Death and rebirth
     questions:
       - What is reborn if there is no soul?
       - What happens at the moment of death?
       - Do the suttas describe past lives?
+    si:
+      name: "මරණය සහ පුනර්භවය"
+      questions:
+        - "ආත්මයක් නැත්නම් නැවත උපදින්නේ කුමක්ද?"
+        - "මරණ මොහොතේ සිදුවන්නේ කුමක්ද?"
+        - "සූත්‍රවල පෙර ආත්ම භව ගැන විස්තර වේද?"
   - id: the-mind
     name: The mind
     questions:
       - What is the mind made of?
       - Where do thoughts and feelings come from?
       - How does craving arise?
+    si:
+      name: "සිත"
+      questions:
+        - "සිත සෑදී ඇත්තේ කුමකින්ද?"
+        - "සිතුවිලි සහ වේදනා හටගන්නේ කොහෙන්ද?"
+        - "තණ්හාව හටගන්නේ කෙසේද?"
   - id: practice
     name: Practice
     questions:
       - How do I begin breath meditation?
       - How can I practise loving-kindness daily?
       - What are the five precepts?
+    si:
+      name: "ප්‍රතිපදාව"
+      questions:
+        - "ආනාපානසති භාවනාව ආරම්භ කරන්නේ කෙසේද?"
+        - "දිනපතා මෛත්‍රී භාවනාව වඩන්නේ කෙසේද?"
+        - "පංච සීලය මොනවාද?"

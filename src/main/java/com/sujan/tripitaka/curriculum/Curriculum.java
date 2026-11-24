@@ -24,7 +24,7 @@ public final class Curriculum {
     public record LearningPath(String id, int order, String title, String level, String blurb, String description,
                                List<String> keyTexts, Integer minutesPerLesson, Integer plannedLessons,
                                String reviewedBy, List<String> outcomes, List<String> before, List<String> after,
-                               List<String> questions, List<Lesson> lessons) {
+                               List<String> questions, List<Lesson> lessons, PathSi si) {
 
         public LearningPath {
             minutesPerLesson = minutesPerLesson == null ? 15 : minutesPerLesson;
@@ -52,7 +52,7 @@ public final class Curriculum {
      * @param question what the lesson asks the AI to explain
      */
     public record Lesson(String id, String title, String keyText, List<String> textIds, String question,
-                         String reflectPrompt, Quiz quiz, String reviewedBy) {
+                         String reflectPrompt, Quiz quiz, String reviewedBy, LessonSi si) {
 
         public Lesson {
             textIds = nullSafe(textIds);
@@ -67,7 +67,7 @@ public final class Curriculum {
         }
     }
 
-    public record Theme(String id, String name, List<String> questions) {
+    public record Theme(String id, String name, List<String> questions, ThemeSi si) {
 
         public Theme {
             questions = nullSafe(questions);
@@ -81,7 +81,45 @@ public final class Curriculum {
         }
     }
 
-    public record DailySutta(String id, String title, String text, String note, String question, String reviewedBy) {
+    public record DailySutta(String id, String title, String text, String note, String question, String reviewedBy,
+                             DailySi si) {
+    }
+
+    // ---------- Sinhala versions (optional; any field left out falls back to English) ----------
+
+    public record PathSi(String title, String blurb, String description, List<String> outcomes, List<String> questions) {
+
+        public PathSi {
+            outcomes = nullSafe(outcomes);
+            questions = nullSafe(questions);
+        }
+    }
+
+    /** @param textIds the key text in the Sinhala collection (tipitaka.lk keys, e.g. "mn-3-4-5") */
+    public record LessonSi(String title, String keyText, List<String> textIds, String question, String reflectPrompt,
+                           QuizSi quiz) {
+
+        public LessonSi {
+            textIds = nullSafe(textIds);
+        }
+    }
+
+    /** Same options in the same order as the English quiz, so the answer index is shared. */
+    public record QuizSi(String question, List<String> options, String explanation) {
+
+        public QuizSi {
+            options = nullSafe(options);
+        }
+    }
+
+    public record ThemeSi(String name, List<String> questions) {
+
+        public ThemeSi {
+            questions = nullSafe(questions);
+        }
+    }
+
+    public record DailySi(String title, String text, String note, String question) {
     }
 
     public record DailySuttas(List<DailySutta> suttas) {

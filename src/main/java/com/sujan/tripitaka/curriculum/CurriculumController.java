@@ -75,73 +75,123 @@ public class CurriculumController {
 
     /** @param level optional: beginner, intermediate or advanced (any case); omit or "all" for every path */
     @GetMapping("/paths")
-    public List<PathSummary> paths(@RequestParam(required = false) String level) {
+    public List<PathSummary> paths(@RequestParam(required = false) String level,
+                                   @RequestParam(required = false) String lang) {
+        boolean si = sinhala(lang);
         String wanted = level == null || level.isBlank() ? "all" : level.trim().toLowerCase(Locale.ROOT);
         if (!wanted.equals("all") && !Curriculum.LEVELS.contains(wanted)) {
             throw new CurriculumRequestException("level must be all, beginner, intermediate or advanced");
         }
         return curriculum.paths().stream()
                 .filter(p -> wanted.equals("all") || p.level().equals(wanted))
-                .map(CurriculumController::summary)
+                .map(p -> summary(p, si))
                 .toList();
     }
 
     @GetMapping("/paths/{id}")
-    public PathDetail path(@PathVariable String id) {
+    public PathDetail path(@PathVariable String id, @RequestParam(required = false) String lang) {
+        boolean si = sinhala(lang);
         LearningPath path = curriculum.path(id).orElseThrow(() -> new CurriculumNotFoundException("path", id));
-        return new PathDetail(path.id(), path.title(), path.level(), path.blurb(), path.description(),
-                path.keyTexts(), path.minutesPerLesson(), path.lessonCount(), path.available(), path.outcomes(),
-                refs(path.before()), refs(path.after()), path.questions(),
-                path.lessons().stream().map(CurriculumController::ref).toList(), true, path.reviewedBy());
+        var t = si ? path.si() : null;
+        return new PathDetail(path.id(), or(t == null ? null : t.title(), path.title()), path.level(),
+                or(t == null ? null : t.blurb(), path.blurb()),
+                or(t == null ? null : t.description(), path.description()),
+                path.keyTexts(), path.minutesPerLesson(), path.lessonCount(), path.available(),
+                orList(t == null ? null : t.outcomes(), path.outcomes()),
+                refs(path.before(), si), refs(path.after(), si),
+                orList(t == null ? null : t.questions(), path.questions()),
+                path.lessons().stream().map(l -> ref(l, si)).toList(), true, path.reviewedBy());
     }
 
     @GetMapping("/lessons/{id}")
-    public LessonDetail lesson(@PathVariable String id) {
+    public LessonDetail lesson(@PathVariable String id, @RequestParam(required = false) String lang) {
+        boolean si = sinhala(lang);
         Lesson lesson = curriculum.lesson(id).orElseThrow(() -> new CurriculumNotFoundException("lesson", id));
         LearningPath path = curriculum.pathOfLesson(id).orElseThrow();
         List<Lesson> lessons = path.lessons();
         int index = lessons.indexOf(lesson);
         Quiz quiz = lesson.quiz();
-        return new LessonDetail(lesson.id(), lesson.title(), lesson.keyText(), lesson.textIds(), lesson.question(),
-                lesson.reflectPrompt(),
-                quiz == null ? null : new QuizView(quiz.question(), quiz.options(), quiz.answer(), quiz.explanation(),
-                        true, quiz.reviewedBy()),
-                new PathRef(path.id(), path.title()), index + 1, lessons.size(),
-                index > 0 ? ref(lessons.get(index - 1)) : null,
-                index < lessons.size() - 1 ? ref(lessons.get(index + 1)) : null,
+        var t = si ? lesson.si() : null;
+        var tq = t == null ? null : t.quiz();
+        return new LessonDetail(lesson.id(), or(t == null ? null : t.title(), lesson.title()),
+                or(t == null ? null : t.keyText(), lesson.keyText()),
+                t != null && !t.textIds().isEmpty() ? t.textIds() : lesson.textIds(),
+                or(t == null ? null : t.question(), lesson.question()),
+                or(t == null ? null : t.reflectPrompt(), lesson.reflectPrompt()),
+                quiz == null ? null : new QuizView(or(tq == null ? null : tq.question(), quiz.question()),
+                        orList(tq == null ? null : tq.options(), quiz.options()), quiz.answer(),
+                        or(tq == null ? null : tq.explanation(), quiz.explanation()), true, quiz.reviewedBy()),
+                pathRef(path, si), index + 1, lessons.size(),
+                index > 0 ? ref(lessons.get(index - 1), si) : null,
+                index < lessons.size() - 1 ? ref(lessons.get(index + 1), si) : null,
                 true, lesson.reviewedBy());
     }
 
     /** The Dhamma questions, grouped by theme: the questions are curated, their answers are written by AI. */
     @GetMapping("/themes")
-    public List<ThemeView> themes() {
+    public List<ThemeView> themes(@RequestParam(required = false) String lang) {
+        boolean si = sinhala(lang);
         return curriculum.themes().stream()
-                .map((Theme t) -> new ThemeView(t.id(), t.name(), t.questions(), true))
+                .map((Theme t) -> {
+                    var x = si ? t.si() : null;
+                    return new ThemeView(t.id(), or(x == null ? null : x.name(), t.name()),
+                            orList(x == null ? null : x.questions(), t.questions()), true);
+                })
                 .toList();
     }
 
     /** Today's sutta: the daily list in turn, one entry per day. */
     @GetMapping("/daily-sutta")
-    public DailySuttaView dailySutta() {
+    public DailySuttaView dailySutta(@RequestParam(required = false) String lang) {
+        boolean si = sinhala(lang);
         List<DailySutta> suttas = curriculum.dailySuttas();
         DailySutta today = suttas.get((int) (LocalDate.now(clock).toEpochDay() % suttas.size()));
-        return new DailySuttaView(today.id(), today.title(), today.text(), today.note(), today.question(),
-                true, today.reviewedBy());
+        var x = si ? today.si() : null;
+        return new DailySuttaView(today.id(), or(x == null ? null : x.title(), today.title()),
+                or(x == null ? null : x.text(), today.text()), or(x == null ? null : x.note(), today.note()),
+                or(x == null ? null : x.question(), today.question()), true, today.reviewedBy());
     }
 
-    private static PathSummary summary(LearningPath path) {
-        return new PathSummary(path.id(), path.title(), path.level(), path.blurb(), path.keyTexts(),
+    /** "si" for Sinhala; omitted or "en" for English; anything else is a bad request. */
+    private static boolean sinhala(String lang) {
+        if (lang == null || lang.isBlank() || lang.equals("en")) {
+            return false;
+        }
+        if (lang.equals("si")) {
+            return true;
+        }
+        throw new CurriculumRequestException("lang must be en or si");
+    }
+
+    private static String or(String translated, String english) {
+        return translated == null || translated.isBlank() ? english : translated;
+    }
+
+    private static List<String> orList(List<String> translated, List<String> english) {
+        return translated == null || translated.isEmpty() ? english : translated;
+    }
+
+    private static PathRef pathRef(LearningPath path, boolean si) {
+        return new PathRef(path.id(), or(si && path.si() != null ? path.si().title() : null, path.title()));
+    }
+
+    private static PathSummary summary(LearningPath path, boolean si) {
+        var t = si ? path.si() : null;
+        return new PathSummary(path.id(), or(t == null ? null : t.title(), path.title()), path.level(),
+                or(t == null ? null : t.blurb(), path.blurb()), path.keyTexts(),
                 path.lessonCount(), path.lessons().stream().map(Lesson::id).toList(), path.available(),
                 true, path.reviewedBy());
     }
 
-    private List<PathRef> refs(List<String> ids) {
+    private List<PathRef> refs(List<String> ids, boolean si) {
         return ids.stream().map(id -> curriculum.path(id).orElseThrow())
-                .map(p -> new PathRef(p.id(), p.title()))
+                .map(p -> pathRef(p, si))
                 .toList();
     }
 
-    private static LessonRef ref(Lesson lesson) {
-        return new LessonRef(lesson.id(), lesson.title(), lesson.keyText());
+    private static LessonRef ref(Lesson lesson, boolean si) {
+        var t = si ? lesson.si() : null;
+        return new LessonRef(lesson.id(), or(t == null ? null : t.title(), lesson.title()),
+                or(t == null ? null : t.keyText(), lesson.keyText()));
     }
 }

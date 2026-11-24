@@ -1,4 +1,4 @@
-# Curated path. Sutta picks, lesson text and quizzes are drafts until a teacher reviews them:
+# Curated path. Sutta picks, lesson text and quizzes (English and Sinhala) are drafts until a teacher reviews them:
 # set reviewedBy on the path, a lesson or a quiz once it has been checked.
 id: understanding-kamma
 order: 3
@@ -21,6 +21,18 @@ after: [rebirth-and-realms, dependent-origination]
 questions:
   - Is everything that happens to me my kamma?
   - Can merit be shared with the departed?
+si:
+  title: "කර්මය අවබෝධ කර ගැනීම"
+  blurb: "චේතනාව, මිනිසුන් වෙනස් වීමට හේතුව, කර්මය ඉරණම නොවන බව සහ කර්මයේ අවසානය."
+  description: "බුදුරජාණන් වහන්සේ කර්මය ලෙස අදහස් කළේ කුමක්ද, එය ඉරණම නොව චේතනාව වන්නේ ඇයි, එය මේ ජීවිතයට හා මතු ජීවිතයට බලපාන්නේ කෙසේද, එය අවසන් වන්නේ කෙසේද."
+  outcomes:
+    - "චේතනාව කර්මය වන්නේ ඇයි"
+    - "කර්මය ඉරණමක් හෝ දෙවියෙකුගේ කැමැත්තක් නොවන්නේ ඇයි"
+    - "ක්‍රියා මේ ජීවිතයට හා මතු උපත්වලට බලපාන ආකාරය"
+    - "කර්මයෙන් එතෙර වීම යනු කුමක්ද"
+  questions:
+    - "මට සිදුවන සියල්ල මගේ කර්මය ද?"
+    - "මියගිය අයට පින් අනුමෝදන් කළ හැකිද?"
 lessons:
   - id: kamma-intention
     title: "What kamma means: intention"
@@ -38,6 +50,19 @@ lessons:
       answer: 1
       explanation: >-
         “It is intention that I call deeds. For after making a choice one acts by way of body, speech, and mind.”
+    si:
+      title: "කර්මය යනු කුමක්ද: චේතනාව"
+      keyText: "නිබ්බේධික සූත්‍රය"
+      textIds: [an-6-2-1-9]
+      question: "චේතනාව කර්මය බව වදාළ විට බුදුරජාණන් වහන්සේ අදහස් කළේ කුමක්ද?"
+      reflectPrompt: "අද ඔබ එතරම් නොසිතා කළ දෙයක් සිහි කරන්න. ඒ පිටුපස චේතනාවක් තිබුණාද?"
+      quiz:
+        question: "නිබ්බේධික සූත්‍රයේ බුදුරජාණන් වහන්සේ කර්මය ලෙස හඳුන්වන්නේ කුමක්ද?"
+        options:
+          - "උපතේදී තීරණය වූ ඉරණම"
+          - "චේතනාව"
+          - "පන්සලේ කරන චාරිත්‍ර"
+        explanation: "බුදුරජාණන් වහන්සේ චේතනාව ම කර්මය ලෙස වදාරති: චේතනා කොට කයින්, වචනයෙන් හා සිතින් ක්‍රියා කරයි."
 
   - id: kamma-not-fate
     title: Kamma is not fate
@@ -57,6 +82,19 @@ lessons:
       explanation: >-
         He rejects three tenets: that everything we experience comes from past deeds, from God’s creation, or from
         no cause at all. Each one, taken to its conclusion, leaves no room for choosing what to do now.
+    si:
+      title: "කර්මය ඉරණම නොවේ"
+      keyText: "තිත්ථායතන සූත්‍රය"
+      textIds: [an-3-2-2]
+      question: "අප විඳින සියල්ල පෙර කළ කර්මය නිසා ම ය යන මතය බුදුරජාණන් වහන්සේ ප්‍රතික්ෂේප කළේ ඇයි?"
+      reflectPrompt: "යමක් වැරදුණු විට ඔබ දොස් පවරන්නේ අතීතයට ද, අනුන්ට ද, අහම්බයට ද? දැන් ඔබට තෝරා ගත හැකි දේ දෙස බැලුවොත් කුමක් වෙනස් වේද?"
+      quiz:
+        question: "තිත්ථායතන සූත්‍රයේ බුදුරජාණන් වහන්සේ ප්‍රතික්ෂේප කරන මතය කුමක්ද?"
+        options:
+          - "පුද්ගලයා විඳින සියල්ල පෙර කළ කර්මය නිසා ම ය යන්න"
+          - "චේතනාවෙන් කළ කර්මවලට විපාක ඇති බව"
+          - "අකුසල කර්ම අත්හැරිය හැකි බව"
+        explanation: "සියල්ල පෙර කර්මය නිසා, ඊශ්වර නිර්මාණය නිසා, හෝ හේතුවක් නැතිව සිදු වේ යන මත තුනම උන්වහන්සේ ප්‍රතික්ෂේප කරති. ඒ කුමන මතය පිළිගත්තද, දැන් කළ යුත්ත තෝරා ගැනීමට ඉඩක් නොරැඳේ."
 
   - id: kamma-born-different
     title: Why are people born different?
@@ -75,6 +113,19 @@ lessons:
       explanation: >-
         Giving up killing, living with sympathy for all living beings, leads towards a long life; killing leads
         towards a short one.
+    si:
+      title: "මිනිසුන් එකිනෙකාට වෙනස්ව උපදින්නේ ඇයි?"
+      keyText: "චූළකම්මවිභඞ්ග සූත්‍රය (ම. නි. 135)"
+      textIds: [mn-3-4-5]
+      question: "චූළකම්මවිභඞ්ග සූත්‍රයට අනුව මිනිසුන් එකිනෙකාට වෙනස්ව උපදින්නේ ඇයි?"
+      reflectPrompt: "ඔබ දිනපතා නැවත නැවත කියන වචනයක් සිහි කරන්න. සාමාන්‍යයෙන් ඒ පිටුපස ඇත්තේ කුමන චේතනාවක්ද?"
+      quiz:
+        question: "චූළකම්මවිභඞ්ග සූත්‍රයට අනුව දීර්ඝායුෂයට හේතු වන්නේ කුමක්ද?"
+        options:
+          - "හොඳ පවුලක ඉපදීම"
+          - "සතුන් මැරීමෙන් වැළකීම"
+          - "පන්සලට පූජා කිරීම"
+        explanation: "සතුන් මැරීමෙන් වැළකී, සියලු සතුන් කෙරෙහි දයාවෙන් වාසය කිරීම දීර්ඝායුෂයට හේතු වේ; සතුන් මැරීම අල්පායුෂයට හේතු වේ."
 
   - id: kamma-four-kinds
     title: Four kinds of kamma
@@ -92,6 +143,19 @@ lessons:
       answer: 2
       explanation: >-
         Neither dark nor bright deeds, with neither dark nor bright results, lead to the ending of deeds.
+    si:
+      title: "කර්ම වර්ග සතර"
+      keyText: "ප්‍රථම කර්ම සූත්‍රය (අඞ්ගුත්තර නිකාය, කර්ම වර්ගය)"
+      textIds: [an-4-5-4-1]
+      question: "කර්ම සූත්‍රයේ බුදුරජාණන් වහන්සේ දේශනා කරන කර්ම වර්ග සතර මොනවාද?"
+      reflectPrompt: "ඊයේ දවස සිහි කරන්න. ඔබේ ක්‍රියාවලින් පැහැදිලිවම කුසල වූයේ කුමක්ද, අකුසල වූයේ කුමක්ද, මිශ්‍ර වූයේ කුමක්ද?"
+      quiz:
+        question: "කෘෂ්ණත් නොවූ ශුක්ලත් නොවූ කර්මය කුමකට හේතු වේද?"
+        options:
+          - "දිව්‍ය ලෝකයක ඉපදීමට"
+          - "සැප දුක් මිශ්‍ර විපාකවලට"
+          - "කර්ම ක්‍ෂය වීමට"
+        explanation: "කෘෂ්ණත් නොවූ ශුක්ලත් නොවූ විපාක ඇති, කෘෂ්ණත් නොවූ ශුක්ලත් නොවූ කර්මය කර්ම ක්‍ෂය පිණිස පවතී."
 
   - id: kamma-rebirth
     title: Kamma and rebirth
@@ -110,6 +174,19 @@ lessons:
       explanation: >-
         The Buddha explains that a person’s rebirth depends on other deeds done earlier or later, or on the view
         they take up at the time of death, so no single deed tells the whole story.
+    si:
+      title: "කර්මය සහ පුනර්භවය"
+      keyText: "මහාකම්මවිභඞ්ග සූත්‍රය (ම. නි. 136)"
+      textIds: [mn-3-4-6]
+      question: "අකුසල කළ අයෙකු සුගතියක ඉපදීම මහාකම්මවිභඞ්ග සූත්‍රය පහදා දෙන්නේ කෙසේද?"
+      reflectPrompt: "දවසක් අවසානයේ හෝ ජීවිතයක් අවසානයේ ඔබේ සිත කුමන තත්ත්වයක පවතීද යන්න වැදගත් වන්නේ ඇයි?"
+      quiz:
+        question: "මහාකම්මවිභඞ්ග සූත්‍රයට අනුව අකුසල කළ අයෙකුට වුවද සුගතියක ඉපදිය හැක්කේ ඇයි?"
+        options:
+          - "පෙර හෝ පසුව කළ කුසල කර්මයක් නිසා, හෝ මරණ මොහොතේ සම්මා දිට්ඨිය ගැනීම නිසා"
+          - "මරණයෙන් පසු කර්මයට විපාක නැති නිසා"
+          - "දෙවියෙක් එම පාපය සමා කරන නිසා"
+        explanation: "පුද්ගලයෙකුගේ උපත පෙර හෝ පසු කළ වෙනත් කර්ම මත ද, මරණ මොහොතේ ගන්නා දෘෂ්ටිය මත ද රඳා පවතින බව බුදුරජාණන් වහන්සේ පහදා දෙති. එබැවින් එක් කර්මයකින් පමණක් සම්පූර්ණ කතාව නොකියැවේ."
 
   - id: kamma-merit
     title: "Merit: giving, virtue, meditation"
@@ -127,6 +204,19 @@ lessons:
         - Giving, ethical conduct and meditation
       answer: 2
       explanation: “Giving, ethical conduct, and meditation are all grounds for making merit.”
+    si:
+      title: "පින: දානය, සීලය, භාවනාව"
+      keyText: "පුඤ්ඤකිරියවත්ථු සූත්‍රය"
+      textIds: [an-8-1-4-6]
+      question: "පුඤ්ඤකිරියවත්ථු සූත්‍රයේ දැක්වෙන පුණ්‍යක්‍රියා වස්තු තුන මොනවාද, ඒවා එකිනෙකට වෙනස් වන්නේ කෙසේද?"
+      reflectPrompt: "දානය, සීලය, භාවනාව යන තුනෙන් ඔබට පහසු කුමක්ද? මේ සතියේ තව ටිකක් පුරුදු කළ හැක්කේ කුමක්ද?"
+      quiz:
+        question: "පුඤ්ඤකිරියවත්ථු සූත්‍රයේ දැක්වෙන පුණ්‍යක්‍රියා වස්තු තුන කුමක්ද?"
+        options:
+          - "පිරිත් කීම, පූජා කිරීම, වන්දනා ගමන්"
+          - "ඉගෙනීම, වාද කිරීම, භාවනා වැඩසටහන්"
+          - "දානය, සීලය, භාවනාව"
+        explanation: "දානමය, සීලමය, භාවනාමය යන තුන පුණ්‍යක්‍රියා වස්තු වේ."
 
   - id: kamma-ending
     title: The kamma that ends kamma
@@ -145,3 +235,16 @@ lessons:
       explanation: >-
         “It’s the intention to give up dark deeds with dark results, bright deeds with bright results, and both dark
         and bright deeds with both dark and bright results.”
+    si:
+      title: "කර්මය ක්‍ෂය කරන කර්මය"
+      keyText: "කුක්කුරවතිය සූත්‍රය (ම. නි. 57)"
+      textIds: [mn-2-1-7]
+      question: "කුක්කුරවතිය සූත්‍රයට අනුව කර්ම ක්‍ෂය පිණිස පවතින කර්මය කුමක්ද?"
+      reflectPrompt: "කුසල් කරමින්ම, එහි යහපත් විපාක තමන් සඳහාම අල්ලා නොගෙන ක්‍රියා කිරීම යනු කුමක්ද?"
+      quiz:
+        question: "කුක්කුරවතිය සූත්‍රයට අනුව කර්ම ක්‍ෂය පිණිස පවතින්නේ කුමක්ද?"
+        options:
+          - "කෘෂ්ණ, ශුක්ල හා මිශ්‍ර කර්ම අත්හැරීමට ඇති චේතනාව"
+          - "සූත්‍රයේ තවුසා මෙන් බල්ලෙකු සේ ජීවත් වීම"
+          - "ශුක්ල කර්ම පමණක් කිරීම"
+        explanation: "කෘෂ්ණ, ශුක්ල සහ කෘෂ්ණශුක්ල යන කර්ම තුනම අත්හැරීම පිණිස වූ චේතනාව කර්ම ක්‍ෂය පිණිස පවතී."

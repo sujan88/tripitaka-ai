@@ -42,6 +42,21 @@ class CurriculumRepositoryTest {
     }
 
     @Test
+    void everyKammaLessonHasASinhalaVersionWithItsTipitakaLkText() throws Exception {
+        var kamma = new CurriculumRepository().path("understanding-kamma").orElseThrow();
+
+        assertTrue(kamma.si() != null && kamma.si().title() != null);
+        kamma.lessons().forEach(lesson -> {
+            var si = lesson.si();
+            assertTrue(si != null && si.title() != null && si.question() != null && si.reflectPrompt() != null,
+                    lesson.id() + " has no Sinhala version");
+            assertTrue(!si.textIds().isEmpty() && si.textIds().stream().allMatch(id -> id.matches("^(mn|an)(-\\d+)+$")),
+                    lesson.id() + " needs a tipitaka.lk key");
+            assertEquals(lesson.quiz().options().size(), si.quiz().options().size());
+        });
+    }
+
+    @Test
     void loadsTheBigQuestionsAndDailySuttas() throws Exception {
         var curriculum = new CurriculumRepository();
 

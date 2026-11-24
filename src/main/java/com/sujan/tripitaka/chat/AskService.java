@@ -117,7 +117,7 @@ public class AskService {
         }
         Lesson lesson = request.lessonId() == null ? null : curriculum.lesson(request.lessonId())
                 .orElseThrow(() -> new CurriculumNotFoundException("lesson", request.lessonId()));
-        Set<String> keyTextIds = lesson == null ? Set.of() : Set.copyOf(lesson.textIds());
+        Set<String> keyTextIds = lesson == null ? Set.of() : Set.copyOf(keyTextIds(lesson, request.sinhala()));
 
         // A first question asked exactly like an earlier one gets the stored answer: no model call at all.
         String cacheKey = request.conversationId() == null && answerCache.enabled()
@@ -175,7 +175,8 @@ public class AskService {
     String cacheKey(AskRequest request, List<String> collections, Lesson lesson) {
         var parts = new ArrayList<>(List.of(answerFingerprint, AnswerCache.normalize(request.question()),
                 request.sinhala() ? "si" : "en", request.depthOrDefault(),
-                lesson == null ? "-" : lesson.id() + "|" + lesson.title() + "|" + lesson.keyText() + "|" + lesson.textIds()));
+                lesson == null ? "-" : lesson.id() + "|" + lessonTitle(lesson, request.sinhala()) + "|"
+                        + lessonKeyText(lesson, request.sinhala()) + "|" + keyTextIds(lesson, request.sinhala())));
         for (String c : collections) {
             parts.add(c + "@" + releases.current(c).orElse("none"));
         }
@@ -198,6 +199,25 @@ public class AskService {
                 r.mentalModel(), r.mermaid(), r.sourceDistribution(), r.unknowns(), r.followUps(), r.generatedBy());
     }
 
+    /**
+     * The lesson's key text in the collection being searched: tipitaka.lk keys for Sinhala, SuttaCentral ids for
+     * English. A Sinhala lesson without Sinhala ids prefers nothing (the English ids would never match).
+     */
+    static List<String> keyTextIds(Lesson lesson, boolean sinhala) {
+        if (!sinhala) {
+            return lesson.textIds();
+        }
+        return lesson.si() == null ? List.of() : lesson.si().textIds();
+    }
+
+    static String lessonTitle(Lesson lesson, boolean sinhala) {
+        return sinhala && lesson.si() != null && lesson.si().title() != null ? lesson.si().title() : lesson.title();
+    }
+
+    static String lessonKeyText(Lesson lesson, boolean sinhala) {
+        return sinhala && lesson.si() != null && lesson.si().keyText() != null ? lesson.si().keyText() : lesson.keyText();
+    }
+
     /** Depth, lesson and language instructions appended to the system prompt, in that order. */
     String instructions(AskRequest request, Lesson lesson) {
         var extra = new StringBuilder();
@@ -206,8 +226,8 @@ public class AskService {
             extra.append('\n').append(depth);
         }
         if (lesson != null) {
-            extra.append('\n').append(lessonTemplate.replace("{{TITLE}}", lesson.title())
-                    .replace("{{KEY_TEXT}}", lesson.keyText()));
+            extra.append('\n').append(lessonTemplate.replace("{{TITLE}}", lessonTitle(lesson, request.sinhala()))
+                    .replace("{{KEY_TEXT}}", lessonKeyText(lesson, request.sinhala())));
         }
         if (request.sinhala()) {
             extra.append('\n').append(sinhalaInstructions);

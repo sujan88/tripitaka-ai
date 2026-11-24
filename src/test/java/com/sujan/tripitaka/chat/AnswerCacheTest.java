@@ -101,4 +101,14 @@ class AnswerCacheTest {
     void aCachedAnswerIsServedUnderTheNewConversation() {
         assertEquals("new", AskService.withConversation(response("old"), "new").conversationId());
     }
+
+    @Test
+    void aSinhalaLessonPrefersItsTipitakaLkTextAndNeverTheEnglishIds() throws Exception {
+        var lesson = new com.sujan.tripitaka.curriculum.CurriculumRepository().lesson("kamma-born-different").orElseThrow();
+
+        assertEquals(List.of("mn135"), AskService.keyTextIds(lesson, false));
+        assertEquals(List.of("mn-3-4-5"), AskService.keyTextIds(lesson, true));
+        assertEquals("චූළකම්මවිභඞ්ග සූත්‍රය (ම. නි. 135)", AskService.lessonKeyText(lesson, true));
+        assertEquals("MN 135", AskService.lessonKeyText(lesson, false));
+    }
 }

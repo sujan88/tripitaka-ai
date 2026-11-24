@@ -110,4 +110,31 @@ class CurriculumControllerTest {
                 .andExpect(jsonPath("$.title").value("Dhammapada 1–2"))
                 .andExpect(jsonPath("$.curated").value(true));
     }
+
+    @Test
+    void sinhalaVersionsWithEnglishFallback() throws Exception {
+        mvc.perform(get("/api/lessons/kamma-born-different").param("lang", "si"))
+                .andExpect(jsonPath("$.title").value("මිනිසුන් එකිනෙකාට වෙනස්ව උපදින්නේ ඇයි?"))
+                .andExpect(jsonPath("$.textIds", contains("mn-3-4-5")))
+                .andExpect(jsonPath("$.quiz.options", hasSize(3)))
+                .andExpect(jsonPath("$.quiz.answer").value(1))
+                .andExpect(jsonPath("$.path.title").value("කර්මය අවබෝධ කර ගැනීම"))
+                .andExpect(jsonPath("$.next.title").value("කර්ම වර්ග සතර"));
+        // A path with only a Sinhala title and blurb keeps its English description fields.
+        mvc.perform(get("/api/paths/not-self").param("lang", "si"))
+                .andExpect(jsonPath("$.title").value("අනාත්මය"))
+                .andExpect(jsonPath("$.keyTexts", contains("SN 22.59", "MN 22")));
+        mvc.perform(get("/api/themes").param("lang", "si"))
+                .andExpect(jsonPath("$[0].name").value("කර්මය"))
+                .andExpect(jsonPath("$[0].questions", hasSize(3)));
+        mvc.perform(get("/api/daily-sutta").param("lang", "si"))
+                .andExpect(jsonPath("$.title").value("ධම්මපදය 1–2"));
+        mvc.perform(get("/api/paths").param("lang", "en"))
+                .andExpect(jsonPath("$[2].title").value("Understanding kamma"));
+    }
+
+    @Test
+    void rejectsAnUnknownLanguage() throws Exception {
+        mvc.perform(get("/api/paths").param("lang", "fr")).andExpect(status().isBadRequest());
+    }
 }

@@ -117,6 +117,10 @@ public class CurriculumRepository {
                     require(quiz.answer() >= 0 && quiz.answer() < quiz.options().size(),
                             "quiz answer of " + lesson.id() + " is not one of its options");
                 }
+                if (lesson.si() != null && lesson.si().quiz() != null) {
+                    require(quiz != null && lesson.si().quiz().options().size() == quiz.options().size(),
+                            "Sinhala quiz of " + lesson.id() + " must have the same options as the English quiz");
+                }
             }
         }
         for (LearningPath path : paths) {
@@ -128,6 +132,9 @@ public class CurriculumRepository {
         for (Theme theme : themes) {
             require(theme.id() != null && themeIds.add(theme.id()), "theme ids must be present and unique");
             require(!theme.questions().isEmpty(), "theme " + theme.id() + " has no questions");
+            require(theme.si() == null || theme.si().questions().isEmpty()
+                            || theme.si().questions().size() == theme.questions().size(),
+                    "Sinhala questions of theme " + theme.id() + " must match the English ones one to one");
         }
         require(!dailySuttas.isEmpty(), "daily-suttas.yaml lists no suttas");
     }
