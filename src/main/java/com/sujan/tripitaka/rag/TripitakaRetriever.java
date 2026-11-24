@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -23,6 +23,9 @@ public class TripitakaRetriever {
 
     private static final Logger log = LoggerFactory.getLogger(TripitakaRetriever.class);
     private static final int MAX_CHUNK_CHARS = 6000;
+    /** With several layers, answers get a couple more passages, and at least this many from the suttas. */
+    private static final int LAYERED_EXTRA = 2;
+    private static final int MIN_PRIMARY = 3;
 
     private final VectorStores vectorStores;
     private final Bm25Store bm25Store;
@@ -57,55 +60,75 @@ public class TripitakaRetriever {
     /** Adds the chunks around each hit (same sutta, same release) so the model sees the wider teaching. */
     public List<Document> withContext(List<Document> hits) {
         if (hits.isEmpty() || contextNeighbors <= 0) {
-            return ContextExpander.expand(hits, textId -> List.of(), 0, contextMaxChars);
+            return ContextExpander.expand(hits, hit -> List.of(), 0, contextMaxChars);
         }
-        var first = hits.get(0).getMetadata();
-        String collection = String.valueOf(first.get("collection"));
-        String release = String.valueOf(first.get("release"));
-        List<Document> expanded = ContextExpander.expand(hits,
-                textId -> bm25Store.chunksOfText(collection, release, textId), contextNeighbors, contextMaxChars);
+        // Each hit's neighbours come from its own collection and release (hits may span several layers).
+        List<Document> expanded = ContextExpander.expand(hits, hit -> bm25Store.chunksOfText(
+                        String.valueOf(hit.getMetadata().get("collection")),
+                        String.valueOf(hit.getMetadata().get("release")),
+                        String.valueOf(hit.getMetadata().get("textId"))),
+                contextNeighbors, contextMaxChars);
         log.info("Context hits={} expanded={} chars={}", hits.size(), expanded.size(),
                 expanded.stream().mapToInt(d -> d.getText().length()).sum());
         return expanded;
     }
 
     public List<Document> search(String query, String collection) {
-        Optional<String> release = releases.current(collection);
-        if (release.isEmpty()) {
-            log.warn("No published release for collection={}; run the ingest profile", collection);
+        return search(query, List.of(collection));
+    }
+
+    /**
+     * Searches several collections at once (e.g. suttas + Abhidhamma + commentaries). The first collection is the
+     * primary source: when several are searched, at least {@link #MIN_PRIMARY} of the passages come from it.
+     */
+    public List<Document> search(String query, List<String> collections) {
+        String primary = collections.get(0);
+        Map<String, String> published = new java.util.LinkedHashMap<>();
+        for (String collection : collections) {
+            releases.current(collection).ifPresentOrElse(release -> published.put(collection, release),
+                    () -> log.warn("No published release for collection={}; skipping it", collection));
+        }
+        if (published.isEmpty()) {
             return List.of();
         }
 
-        var filters = new FilterExpressionBuilder();
-        var filter = filters.and(filters.eq("collection", collection), filters.eq("release", release.get())).build();
-
-        // Every expanded query runs both searches; all rankings are fused, then reranked against the question.
+        // Every expanded query runs both searches in every collection; all rankings are fused, then reranked.
         List<String> queries = queryExpander.expand(query);
         List<List<Document>> rankings = new ArrayList<>();
         Set<String> semanticIds = new java.util.HashSet<>();
         Set<String> keywordIds = new java.util.HashSet<>();
-        for (String q : queries) {
-            List<Document> semantic = usable(vectorStores.forCollection(collection).similaritySearch(SearchRequest.builder()
-                    .query(q)
-                    .topK(topK)
-                    .similarityThreshold(similarityThreshold)
-                    .filterExpression(filter)
-                    .build()));
-            List<Document> keyword = usable(bm25Store.search(q, collection, release.get(), topK));
-            rankings.add(semantic);
-            rankings.add(keyword);
-            semantic.forEach(d -> semanticIds.add(d.getId()));
-            keyword.forEach(d -> keywordIds.add(d.getId()));
+        var filters = new FilterExpressionBuilder();
+        for (var entry : published.entrySet()) {
+            String collection = entry.getKey();
+            String release = entry.getValue();
+            var filter = filters.and(filters.eq("collection", collection), filters.eq("release", release)).build();
+            for (String q : queries) {
+                List<Document> semantic = usable(vectorStores.forCollection(collection).similaritySearch(SearchRequest.builder()
+                        .query(q)
+                        .topK(topK)
+                        .similarityThreshold(similarityThreshold)
+                        .filterExpression(filter)
+                        .build()));
+                List<Document> keyword = usable(bm25Store.search(q, collection, release, topK));
+                rankings.add(semantic);
+                rankings.add(keyword);
+                semantic.forEach(d -> semanticIds.add(d.getId()));
+                keyword.forEach(d -> keywordIds.add(d.getId()));
+            }
         }
 
+        boolean layered = published.size() > 1;
         List<Document> merged = HybridResultRRFMerger.mergeAll(rankings, topK * 2);
         // The reranker sees the question plus its expansions: a description ("the origin of the world") only
         // reaches the right sutta if the reranker also knows the name the expansion found ("Aggañña Sutta").
         String rerankQuery = String.join("\n", queries);
-        List<Document> finalDocs = tagOrigins(semanticIds, keywordIds, reranker.rerank(rerankQuery, merged, answerChunks));
+        int total = layered ? answerChunks + LAYERED_EXTRA : answerChunks;
+        List<Document> reranked = reranker.rerank(rerankQuery, merged, layered ? total * 2 : total);
+        List<Document> finalDocs = tagOrigins(semanticIds, keywordIds,
+                layered ? Layers.withPrimaryQuota(reranked, total, primary, MIN_PRIMARY) : reranked);
 
-        log.info("Retrieval collection={} queries={} semantic={} bm25={} merged={} final={} texts={}",
-                collection, queries.size(), semanticIds.size(), keywordIds.size(), merged.size(), finalDocs.size(),
+        log.info("Retrieval collections={} queries={} semantic={} bm25={} merged={} final={} texts={}",
+                published.keySet(), queries.size(), semanticIds.size(), keywordIds.size(), merged.size(), finalDocs.size(),
                 finalDocs.stream().map(d -> String.valueOf(d.getMetadata().get("textId"))).toList());
         return finalDocs;
     }

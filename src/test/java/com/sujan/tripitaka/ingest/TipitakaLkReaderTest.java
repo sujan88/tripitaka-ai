@@ -111,6 +111,33 @@ class TipitakaLkReaderTest {
     }
 
     @Test
+    void readsAbhidhammaCommentaryAndVisuddhimaggaWithTheirLayerLabels() throws Exception {
+        String abhidhamma = "{\"filename\":\"ap-dhk\",\"pages\":[" + page(2,
+                List.of(entry("heading", "ධාතුකථාපකරණං", 4), entry("heading", "1. සඞ්ගහාසඞ්ගහපදං", 1), entry("paragraph", "p", null)),
+                List.of(entry("heading", "ධාතුකථා ප්‍රකරණය", 4), entry("heading", "1. සංග්‍රහ අසංග්‍රහ පද", 1),
+                        entry("paragraph", "අභිධර්ම පාඨය", null))) + "]}";
+        String commentary = "{\"filename\":\"atta-ap-dhk\",\"pages\":[" + page(2,
+                List.of(entry("heading", "ධාතුකථාඅට්ඨකථා", 5), entry("heading", "මාතිකාවණ්ණනා", 2), entry("paragraph", "p", null)),
+                List.of(entry("heading", "ධාතුකථා අටුවාව", 5), entry("heading", "මාතෘකා වර්ණනාව", 2),
+                        entry("paragraph", "අටුවා පාඨය", null))) + "]}";
+        String visuddhimagga = "{\"filename\":\"anya-vm\",\"pages\":[" + page(2,
+                List.of(entry("heading", "විසුද්ධිමග්ගො", 5), entry("heading", "1. සීලනිද්දෙසො", 3), entry("paragraph", "p", null)),
+                List.of(entry("heading", "විසුද්ධි මාර්ගය", 5), entry("heading", "1. ශීල නිර්දේසය", 3),
+                        entry("paragraph", "විසුද්ධිමාර්ග පාඨය", null))) + "]}";
+        Files.writeString(dir.resolve("ap-dhk.json"), abhidhamma);
+        Files.writeString(dir.resolve("atta-ap-dhk.json"), commentary);
+        Files.writeString(dir.resolve("anya-vm.json"), visuddhimagga);
+
+        var byLabel = new TipitakaLkReader(List.of("ap-", "atta-ap-", "anya-vm")).read(dir).stream()
+                .collect(java.util.stream.Collectors.toMap(SourceText::nikaya, SourceText::textId));
+
+        assertEquals(java.util.Map.of("අභිධර්ම පිටකය", "ap-dhk-1", "අභිධර්ම අටුවාව", "atta-ap-dhk-1",
+                "විසුද්ධිමාර්ගය", "anya-vm-1"), byLabel);
+        // "ap-" must not also pick up the commentary files.
+        assertEquals(List.of("ap-dhk-1"), new TipitakaLkReader(List.of("ap-")).read(dir).stream().map(SourceText::textId).toList());
+    }
+
+    @Test
     void includeFilterLimitsBooks() throws Exception {
         String book = "{\"filename\":\"mn-1\",\"pages\":[" + page(2,
                 List.of(entry("heading", "x", 2), entry("paragraph", "p", null)),

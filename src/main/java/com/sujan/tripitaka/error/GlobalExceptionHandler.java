@@ -17,7 +17,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail invalid(MethodArgumentNotValidException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
-                "Question must be 1-1000 characters; conversationId must be a UUID; language must be en or si.");
+                "Question must be 1-1000 characters; conversationId must be a UUID; language must be en or si; "
+                        + "scope must be sutta or all.");
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

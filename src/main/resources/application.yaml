@@ -44,6 +44,9 @@ rag:
   sinhala:
     # Sinhala page (/si.html) and requests with "language":"si" search this collection.
     collection: ${TRIPITAKA_SI_COLLECTION:sutta-si}
+    # Explanatory layers searched with the suttas unless the page asks for "suttas only". Each is its own
+    # collection; one that is not ingested yet is skipped.
+    layers: abhidhamma-si,atthakatha-si,visuddhimagga-si
   # Candidates per search method; the merged list (up to 2x) is reranked down to answer-chunks.
   top-k: 25
   similarity-threshold: ${RAG_SIMILARITY_THRESHOLD:0.25}

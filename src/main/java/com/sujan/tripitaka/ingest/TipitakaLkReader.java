@@ -39,12 +39,28 @@ public class TipitakaLkReader {
             "sn", "සංයුත්ත නිකාය",
             "an", "අඞ්ගුත්තර නිකාය",
             "kn", "ඛුද්දක නිකාය");
-    private static final Pattern BOOK_FILE = Pattern.compile("^(dn|mn|sn|an|kn)-[a-z\\d-]+$");
-    /** Books whose level-1 heading comes after its verses (tipitaka.lk build/tree.ts headingAtEndKeys). */
+    /** Sutta nikayas, the Abhidhamma Pitaka, its commentaries (atta-ap) and the Visuddhimagga (anya-vm). */
+    private static final Pattern BOOK_FILE = Pattern.compile("^(dn|mn|sn|an|kn|ap|atta-ap|anya-vm)(-[a-z\\d-]+)?$");
+    /** Books whose level-1 heading comes after its content (tipitaka.lk build/tree.ts headingAtEndKeys). */
     private static final List<Pattern> HEADING_AT_END = List.of("kn-vv", "kn-pv", "kn-thag", "kn-thig", "kn-jat$",
-            "kn-jat-(5|11|22)").stream().map(Pattern::compile).toList();
+            "kn-jat-(5|11|22)", "ap-dhs", "ap-vbh", "ap-yam-(6|7|8|10)").stream().map(Pattern::compile).toList();
+
+    /** Collection label shown with each source: the nikaya, or the layer for non-sutta texts. */
+    static String groupLabel(String key) {
+        if (key.startsWith("atta-ap")) {
+            return "අභිධර්ම අටුවාව";
+        }
+        if (key.startsWith("anya-vm")) {
+            return "විසුද්ධිමාර්ගය";
+        }
+        if (key.startsWith("ap-") || key.equals("ap")) {
+            return "අභිධර්ම පිටකය";
+        }
+        return NIKAYAS.get(key.split("-")[0]);
+    }
     private static final Pattern NUMERIC = Pattern.compile("^[\\d. \\-]+$");
     private static final int NIKAYA_LEVEL = 6;
+    private static final int ROOT_LEVEL = 7;
 
     private final List<String> includes;
     private final JsonMapper json = JsonMapper.builder()
@@ -86,7 +102,7 @@ public class TipitakaLkReader {
         return sections.values().stream()
                 .filter(s -> !s.passages.isEmpty())
                 .map(s -> {
-                    String nikaya = NIKAYAS.get(s.key.split("-")[0]);
+                    String nikaya = groupLabel(s.key);
                     return new SourceText(s.key, s.title, nikaya, s.source, s.passages, searchHeader(tree, s.key, nikaya));
                 })
                 .toList();
@@ -136,8 +152,10 @@ public class TipitakaLkReader {
 
     /** Key and level bookkeeping shared across files, ported from tipitaka.lk build/tree.ts. */
     static final class Tree {
+        // Levels from tipitaka.lk's base tree: nikayas are 6; pitakas and other root groups are 7.
         final Map<String, Integer> levels = new HashMap<>(Map.of("dn", NIKAYA_LEVEL, "mn", NIKAYA_LEVEL,
-                "sn", NIKAYA_LEVEL, "an", NIKAYA_LEVEL, "kn", NIKAYA_LEVEL));
+                "sn", NIKAYA_LEVEL, "an", NIKAYA_LEVEL, "kn", NIKAYA_LEVEL,
+                "ap", ROOT_LEVEL, "atta-ap", ROOT_LEVEL, "anya", ROOT_LEVEL));
         final Map<String, String> names = new HashMap<>();
         final Map<String, String> paliNames = new HashMap<>();
         final Map<String, String> parents = new HashMap<>();
@@ -186,7 +204,9 @@ public class TipitakaLkReader {
             stack.push(new String[]{key, "1"});
         }
 
-        boolean headingAtEnd = HEADING_AT_END.stream().anyMatch(p -> p.matcher(fileKey).find());
+        // Commentaries never put headings at the end, even when their key contains a matching book name.
+        boolean headingAtEnd = !fileKey.startsWith("atta-")
+                && HEADING_AT_END.stream().anyMatch(p -> p.matcher(fileKey).find());
         for (int h = 0; h < sinhHeadings.size(); h++) {
             boolean leaf = h + 1 == sinhHeadings.size() || levels.get(h + 1) >= levels.get(h);
             if (!leaf) {

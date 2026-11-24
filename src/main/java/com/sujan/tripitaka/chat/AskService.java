@@ -4,6 +4,7 @@ import com.sujan.tripitaka.model.AnswerDraft;
 import com.sujan.tripitaka.model.AskRequest;
 import com.sujan.tripitaka.model.AskResponse;
 import com.sujan.tripitaka.rag.ContextExpander;
+import com.sujan.tripitaka.rag.Layers;
 import com.sujan.tripitaka.rag.TripitakaRetriever;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -40,6 +42,7 @@ public class AskService {
     private final TripitakaRetriever retriever;
     private final String collection;
     private final String sinhalaCollection;
+    private final List<String> sinhalaLayers;
     private final String answerSystemPrompt;
     private final String sinhalaInstructions;
     private final String rewriteSystemPrompt;
@@ -50,6 +53,7 @@ public class AskService {
                       TripitakaRetriever retriever,
                       @Value("${rag.collection}") String collection,
                       @Value("${rag.sinhala.collection}") String sinhalaCollection,
+                      @Value("${rag.sinhala.layers:}") List<String> sinhalaLayers,
                       @Value("classpath:prompts/answer-system.md") Resource answerPrompt,
                       @Value("classpath:prompts/answer-language-si.md") Resource sinhalaPrompt,
                       @Value("classpath:prompts/rewrite-system.md") Resource rewritePrompt) throws IOException {
@@ -59,6 +63,7 @@ public class AskService {
         this.retriever = retriever;
         this.collection = collection;
         this.sinhalaCollection = sinhalaCollection;
+        this.sinhalaLayers = sinhalaLayers.stream().filter(s -> s != null && !s.isBlank()).map(String::trim).toList();
         this.answerSystemPrompt = answerPrompt.getContentAsString(StandardCharsets.UTF_8);
         this.sinhalaInstructions = sinhalaPrompt.getContentAsString(StandardCharsets.UTF_8);
         this.rewriteSystemPrompt = rewritePrompt.getContentAsString(StandardCharsets.UTF_8);
@@ -68,11 +73,15 @@ public class AskService {
         long started = System.nanoTime();
         String conversationId = request.conversationId() == null
                 ? UUID.randomUUID().toString() : request.conversationId();
-        // English stays the default; Sinhala reads its own collection and answers in Sinhala.
-        String targetCollection = request.sinhala() ? sinhalaCollection : collection;
+        // English stays the default. Sinhala searches its suttas first, plus (unless "suttas only") the
+        // Abhidhamma, commentaries and Visuddhimagga; the suttas stay the primary source.
+        List<String> targetCollections = new ArrayList<>(List.of(request.sinhala() ? sinhalaCollection : collection));
+        if (request.sinhala() && !request.suttasOnly()) {
+            targetCollections.addAll(sinhalaLayers);
+        }
 
         String searchQuery = standaloneQuery(conversationId, request.question());
-        List<Document> passages = retriever.withContext(retriever.search(searchQuery, targetCollection));
+        List<Document> passages = retriever.withContext(retriever.search(searchQuery, targetCollections));
 
         // Passages go in the system message so chat memory stores only the question, not the context.
         String system = answerSystemPrompt.replace("{{PASSAGES}}", formatPassages(passages))
@@ -129,12 +138,13 @@ public class AskService {
         }
         return passages.stream().map(d -> """
                 CHUNK_ID: %s
+                LAYER: %s
                 TEXT: %s — %s (%s)
                 REFERENCE: %s
                 ROLE: %s
                 CONTENT:
                 %s
-                """.formatted(d.getId(), d.getMetadata().get("textId"), d.getMetadata().get("title"),
+                """.formatted(d.getId(), Layers.of(d), d.getMetadata().get("textId"), d.getMetadata().get("title"),
                 d.getMetadata().get("nikaya"), d.getMetadata().get("reference"),
                 d.getMetadata().getOrDefault(ContextExpander.ROLE, ContextExpander.MATCH), d.getText()))
                 .collect(Collectors.joining("\n---\n"));

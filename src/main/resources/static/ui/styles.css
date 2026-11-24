@@ -33,6 +33,11 @@ h3 { font-size: 26px; font-weight: 650; line-height: 1.25; margin: 0 0 16px; }
 .top-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 a.ghost { text-decoration: none; display: inline-block; }
 .attribution { color: var(--muted); font-size: 16px; margin: 24px 0 0; }
+.scope { border: 0; padding: 0; margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 17px; }
+.scope label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.scope input { width: 20px; height: 20px; accent-color: var(--accent); }
+.layer-tag { background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 2px 8px;
+             font-size: 15px; font-weight: 600; white-space: nowrap; }
 html:lang(si) body { line-height: 1.8; }
 
 .turn { border-top: 1px solid var(--border); padding: 28px 0; }

@@ -75,7 +75,7 @@ form.addEventListener('submit', async event => {
     const response = await fetch('/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, conversationId, language: LANGUAGE })
+      body: JSON.stringify({ question, conversationId, language: LANGUAGE, scope: selectedScope() })
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.detail || STRINGS.requestFailed);
@@ -163,7 +163,7 @@ async function renderAnswer(turn, data) {
         <h3>${STRINGS.sources}</h3>
         ${data.citations.map(c => `
           <details>
-            <summary>${LANGUAGE === 'si' ? '' : `<strong>${escapeHtml(c.textId.toUpperCase())}</strong> `}${escapeHtml(c.title)}
+            <summary>${LANGUAGE === 'si' ? layerTag(c.nikaya) : `<strong>${escapeHtml(c.textId.toUpperCase())}</strong> `}${escapeHtml(c.title)}
               <span class="muted small">· ${escapeHtml(c.nikaya)} · ${escapeHtml(c.reference)}</span></summary>
             <p>${escapeHtml(c.excerpt)}</p>
             ${LANGUAGE === 'si' ? tipitakaLkLink(c.textId) : suttaCentralLink(c.textId)}
@@ -221,9 +221,20 @@ function modelDetails(model) {
   return `<h3 class="model-heading">${STRINGS.eachPart}</h3><ol class="model-cards">${cards.join('')}</ol>`;
 }
 
-/** Section keys from the tipitaka.lk reader (dn-1-1, an-1-1) are the site's own page addresses. */
+/** "all" (suttas + Abhidhamma, commentaries, Visuddhimagga) or "sutta"; only the Sinhala page has the switch. */
+function selectedScope() {
+  return document.querySelector('input[name="scope"]:checked')?.value ?? null;
+}
+
+/** Non-sutta layers get a visible label so a reader never mistakes commentary for the Buddha's words. */
+const LAYER_LABELS = new Set(['අභිධර්ම පිටකය', 'අභිධර්ම අටුවාව', 'විසුද්ධිමාර්ගය']);
+function layerTag(label) {
+  return LAYER_LABELS.has(label) ? `<span class="layer-tag">${escapeHtml(label)}</span> ` : '';
+}
+
+/** Section keys from the tipitaka.lk reader (dn-1-1, ap-dhs-1, anya-vm-1) are the site's own page addresses. */
 function tipitakaLkLink(textId) {
-  if (!/^(dn|mn|sn|an|kn)(-[a-z0-9]+)+$/.test(textId)) return '';
+  if (!/^(dn|mn|sn|an|kn|ap|atta-ap|anya-vm)(-[a-z0-9]+)+$/.test(textId)) return '';
   return `<a href="https://tipitaka.lk/${encodeURIComponent(textId)}/sinh" target="_blank" rel="noopener">tipitaka.lk හි සම්පූර්ණ සූත්‍රය කියවන්න</a>`;
 }
 

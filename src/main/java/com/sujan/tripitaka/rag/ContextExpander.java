@@ -27,26 +27,28 @@ public final class ContextExpander {
 
     /**
      * @param hits         ranked search results
-     * @param chunksOfText all chunks of one text (by textId) in the same release
+     * @param chunksOfText all chunks of a hit's text, from the hit's own collection and release
      * @param window       how many chunks to add on each side of a hit
      * @param maxChars     budget for neighbour text; hits are never dropped
      * @return hits plus neighbours, grouped by text (best-ranked text first) in reading order
      */
-    public static List<Document> expand(List<Document> hits, Function<String, List<Document>> chunksOfText,
+    public static List<Document> expand(List<Document> hits, Function<Document, List<Document>> chunksOfText,
                                         int window, int maxChars) {
         Map<String, Document> chosen = new LinkedHashMap<>();
         Map<String, Integer> textRank = new HashMap<>();
         int used = 0;
         for (Document hit : hits) {
             chosen.put(hit.getId(), withRole(hit, MATCH));
-            textRank.putIfAbsent(textId(hit), textRank.size());
+            textRank.putIfAbsent(textKey(hit), textRank.size());
             used += length(hit);
         }
 
         Map<String, Map<Integer, Document>> siblings = new HashMap<>();
         for (int distance = 1; distance <= window; distance++) {
             for (Document hit : hits) {
-                Map<Integer, Document> byIndex = siblings.computeIfAbsent(textId(hit), id -> index(chunksOfText.apply(id)));
+                // Keyed by collection too: two layers may use the same text id.
+                Map<Integer, Document> byIndex = siblings.computeIfAbsent(
+                        textKey(hit), key -> index(chunksOfText.apply(hit)));
                 for (int offset : new int[]{-distance, distance}) {
                     Document neighbour = byIndex.get(chunkIndex(hit) + offset);
                     if (neighbour == null || chosen.containsKey(neighbour.getId())
@@ -60,7 +62,7 @@ public final class ContextExpander {
         }
 
         List<Document> ordered = new ArrayList<>(chosen.values());
-        ordered.sort(Comparator.<Document>comparingInt(d -> textRank.getOrDefault(textId(d), Integer.MAX_VALUE))
+        ordered.sort(Comparator.<Document>comparingInt(d -> textRank.getOrDefault(textKey(d), Integer.MAX_VALUE))
                 .thenComparingInt(ContextExpander::chunkIndex));
         return List.copyOf(ordered);
     }
@@ -79,6 +81,11 @@ public final class ContextExpander {
             byIndex.putIfAbsent(chunkIndex(chunk), chunk);
         }
         return byIndex;
+    }
+
+    /** A text is identified by collection and id: two layers may reuse the same id. */
+    private static String textKey(Document document) {
+        return document.getMetadata().get("collection") + "|" + textId(document);
     }
 
     private static String textId(Document document) {
