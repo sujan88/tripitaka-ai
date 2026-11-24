@@ -38,6 +38,38 @@ class LayersTest {
         assertEquals(List.of("c1", "a1", "s1", "s2"), ids(picked));
     }
 
+    private static Document scored(String id, String collection, double score) {
+        return Document.builder().id(id).text("t").score(score).metadata(Map.of("collection", collection)).build();
+    }
+
+    @Test
+    void deepQuestionKeepsSuttasAndAddsHigherScoringLayers() {
+        // Commentary outranks every sutta: all suttas stay, and the relevant commentary is added on top.
+        var reranked = List.of(scored("c1", "atthakatha-si", 0.9), scored("v1", "visuddhimagga-si", 0.8),
+                scored("s1", "sutta-si", 0.6), scored("a1", "abhidhamma-si", 0.55), scored("s2", "sutta-si", 0.5),
+                scored("c2", "atthakatha-si", 0.1));
+
+        var picked = Layers.suttasPlusRelevantLayers(reranked, "sutta-si", 2, 3);
+
+        assertEquals(List.of("c1", "v1", "s1", "a1", "s2"), ids(picked));
+    }
+
+    @Test
+    void suttaQuestionGetsNoLayerThatScoresBelowItsSuttas() {
+        var reranked = List.of(scored("s1", "sutta-si", 0.9), scored("s2", "sutta-si", 0.7),
+                scored("a1", "abhidhamma-si", 0.3), scored("c1", "atthakatha-si", 0.2));
+
+        assertEquals(List.of("s1", "s2"), ids(Layers.suttasPlusRelevantLayers(reranked, "sutta-si", 2, 3)));
+    }
+
+    @Test
+    void capsTheNumberOfLayerPassages() {
+        var reranked = List.of(scored("c1", "atthakatha-si", 0.9), scored("c2", "atthakatha-si", 0.85),
+                scored("c3", "atthakatha-si", 0.8), scored("s1", "sutta-si", 0.5));
+
+        assertEquals(List.of("c1", "c2", "s1"), ids(Layers.suttasPlusRelevantLayers(reranked, "sutta-si", 6, 2)));
+    }
+
     @Test
     void takesWhatIsAvailableWhenFewSuttasWereFound() {
         var ranked = List.of(doc("c1", "atthakatha-si"), doc("s1", "sutta-si"), doc("a1", "abhidhamma-si"));

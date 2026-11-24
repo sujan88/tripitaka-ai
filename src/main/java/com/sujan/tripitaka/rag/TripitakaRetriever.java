@@ -23,9 +23,10 @@ public class TripitakaRetriever {
 
     private static final Logger log = LoggerFactory.getLogger(TripitakaRetriever.class);
     private static final int MAX_CHUNK_CHARS = 6000;
-    /** With several layers, answers get a couple more passages, and at least this many from the suttas. */
-    private static final int LAYERED_EXTRA = 2;
-    private static final int MIN_PRIMARY = 3;
+    /** With several layers: candidates per pool, and at most this many non-sutta passages per answer. */
+    private static final int PRIMARY_POOL = 50; // same candidates as a suttas-only search (top-k x 2)
+    private static final int OTHER_POOL = 20;
+    private static final int MAX_LAYER_PASSAGES = 3;
 
     private final VectorStores vectorStores;
     private final Bm25Store bm25Store;
@@ -92,9 +93,11 @@ public class TripitakaRetriever {
             return List.of();
         }
 
-        // Every expanded query runs both searches in every collection; all rankings are fused, then reranked.
+        // Every expanded query runs both searches in every collection. The primary (sutta) collection and the
+        // other layers are fused separately, so dense commentary can never push the suttas out of the pool.
         List<String> queries = queryExpander.expand(query);
         List<List<Document>> rankings = new ArrayList<>();
+        List<List<Document>> otherRankings = new ArrayList<>();
         Set<String> semanticIds = new java.util.HashSet<>();
         Set<String> keywordIds = new java.util.HashSet<>();
         var filters = new FilterExpressionBuilder();
@@ -110,22 +113,32 @@ public class TripitakaRetriever {
                         .filterExpression(filter)
                         .build()));
                 List<Document> keyword = usable(bm25Store.search(q, collection, release, topK));
-                rankings.add(semantic);
-                rankings.add(keyword);
+                var target = collection.equals(primary) ? rankings : otherRankings;
+                target.add(semantic);
+                target.add(keyword);
                 semantic.forEach(d -> semanticIds.add(d.getId()));
                 keyword.forEach(d -> keywordIds.add(d.getId()));
             }
         }
 
-        boolean layered = published.size() > 1;
-        List<Document> merged = HybridResultRRFMerger.mergeAll(rankings, topK * 2);
+        boolean layered = !otherRankings.isEmpty() && !rankings.isEmpty();
         // The reranker sees the question plus its expansions: a description ("the origin of the world") only
         // reaches the right sutta if the reranker also knows the name the expansion found ("Aggañña Sutta").
         String rerankQuery = String.join("\n", queries);
-        int total = layered ? answerChunks + LAYERED_EXTRA : answerChunks;
-        List<Document> reranked = reranker.rerank(rerankQuery, merged, layered ? total * 2 : total);
-        List<Document> finalDocs = tagOrigins(semanticIds, keywordIds,
-                layered ? Layers.withPrimaryQuota(reranked, total, primary, MIN_PRIMARY) : reranked);
+        List<Document> merged;
+        List<Document> finalDocs;
+        if (layered) {
+            // Pool = best suttas + best of the other layers, ranked together in one rerank call; then every
+            // sutta a suttas-only search would return is kept, plus only the layer passages that score as well.
+            merged = new ArrayList<>(HybridResultRRFMerger.mergeAll(rankings, PRIMARY_POOL));
+            merged.addAll(HybridResultRRFMerger.mergeAll(otherRankings, OTHER_POOL));
+            List<Document> reranked = reranker.rerank(rerankQuery, merged, merged.size());
+            finalDocs = tagOrigins(semanticIds, keywordIds,
+                    Layers.suttasPlusRelevantLayers(reranked, primary, answerChunks, MAX_LAYER_PASSAGES));
+        } else {
+            merged = HybridResultRRFMerger.mergeAll(rankings.isEmpty() ? otherRankings : rankings, topK * 2);
+            finalDocs = tagOrigins(semanticIds, keywordIds, reranker.rerank(rerankQuery, merged, answerChunks));
+        }
 
         log.info("Retrieval collections={} queries={} semantic={} bm25={} merged={} final={} texts={}",
                 published.keySet(), queries.size(), semanticIds.size(), keywordIds.size(), merged.size(), finalDocs.size(),

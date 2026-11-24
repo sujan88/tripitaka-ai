@@ -77,6 +77,20 @@ TRIPITAKA_COLLECTION=sutta-si ./mvnw spring-boot:run -Dspring-boot.run.profiles=
 # Sinhala release, so list every nikaya you want in one run.
 ```
 
+### Abhidhamma, commentaries and Visuddhimagga (Sinhala, Phase C)
+
+The Sinhala page searches the suttas plus three explanatory layers, each in its own collection, unless the reader
+picks "සූත්‍ර පමණක්" (suttas only). Every answer keeps the top suttas a suttas-only search would return and adds up to
+three Abhidhamma / commentary / Visuddhimagga passages only when they score at least as well. Answers name the layer
+of each point, and sources carry a layer label. The Paṭṭhāna has no Sinhala translation on tipitaka.lk and is skipped.
+
+```bash
+for pair in "abhidhamma-si:ap-" "atthakatha-si:atta-ap-" "visuddhimagga-si:anya-vm"; do
+  TRIPITAKA_COLLECTION=${pair%%:*} ./mvnw spring-boot:run -Dspring-boot.run.profiles=ingest \
+    -Dspring-boot.run.arguments="--format=tipitakalk --path=$HOME/data/tipitaka.lk/public/static/text --include=${pair#*:}"
+done
+```
+
 A note on ingestion: the whole collection is one release. To add another nikaya, point `--path` at the parent `sutta/` folder so the release contains everything. Ingesting only `sn` afterwards would publish a release with SN alone.
 
 ```bash
