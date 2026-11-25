@@ -39,7 +39,7 @@ class QueryExpanderTest {
         return new QueryExpander(ChatClient.builder(model).build(), true, "gpt-5.4",
                 new ByteArrayResource("EXPAND".getBytes(StandardCharsets.UTF_8)),
                 new ByteArrayResource("FOLLOW-UP".getBytes(StandardCharsets.UTF_8)),
-                new ByteArrayResource("TRANSLATE".getBytes(StandardCharsets.UTF_8)));
+                new ByteArrayResource("TRANSLATE".getBytes(StandardCharsets.UTF_8)), null);
     }
 
     @Test

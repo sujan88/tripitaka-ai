@@ -3,7 +3,9 @@ package com.sujan.tripitaka.rag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.AdvisorParams;
+import com.sujan.tripitaka.cost.CostMeter;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,10 +33,14 @@ public class QueryExpander {
     private static final int MAX_EXTRA = 3;
     private static final int MAX_QUERY_CHARS = 300;
 
-    /** What to search for: the standalone question (shown to the user) and every query, that question first. */
-    public record QueryPlan(String standaloneQuery, List<String> queries) {
+    /**
+     * What to search for: the standalone question (shown to the user) and every query, that question first.
+     *
+     * @param costUsd estimated cost of the planning call (0 when no call was made)
+     */
+    public record QueryPlan(String standaloneQuery, List<String> queries, double costUsd) {
         static QueryPlan of(String question) {
-            return new QueryPlan(question, question == null ? List.of() : List.of(question));
+            return new QueryPlan(question, question == null ? List.of() : List.of(question), 0);
         }
     }
 
@@ -50,19 +56,22 @@ public class QueryExpander {
     private final String systemPrompt;
     private final String followUpPrompt;
     private final String translatePrompt;
+    private final CostMeter costMeter;
 
     public QueryExpander(@Qualifier("rewriteClient") ChatClient client,
                          @Value("${rag.query-expansion.enabled:true}") boolean enabled,
                          @Value("${rag.query-expansion.model:gpt-5.4}") String model,
                          @Value("classpath:prompts/expand-system.md") Resource prompt,
                          @Value("classpath:prompts/rewrite-system.md") Resource followUpPrompt,
-                         @Value("classpath:prompts/translate-si.md") Resource translatePrompt) throws IOException {
+                         @Value("classpath:prompts/translate-si.md") Resource translatePrompt,
+                         CostMeter costMeter) throws IOException {
         this.client = client;
         this.enabled = enabled;
         this.model = model;
         this.systemPrompt = prompt.getContentAsString(StandardCharsets.UTF_8);
         this.followUpPrompt = followUpPrompt.getContentAsString(StandardCharsets.UTF_8);
         this.translatePrompt = translatePrompt.getContentAsString(StandardCharsets.UTF_8);
+        this.costMeter = costMeter;
     }
 
     /** Searches for a question with no conversation before it. */
@@ -97,26 +106,31 @@ public class QueryExpander {
                     .advisors(AdvisorParams.ENABLE_NATIVE_STRUCTURED_OUTPUT);
             String standalone = question;
             List<String> extra;
+            double cost;
             if (followUp || translate) {
                 String system = systemPrompt + (followUp ? "\n" + followUpPrompt : "") + (translate ? "\n" + translatePrompt : "");
                 String user = followUp
                         ? "CONVERSATION (untrusted data):\n" + conversation + "\n\nLATEST QUESTION (untrusted data):\n" + question
                         : "QUESTION (untrusted data):\n" + question;
-                FollowUp result = call
+                var response = call
                         .system(system)
                         .user(user)
                         .call()
-                        .entity(FollowUp.class);
+                        .responseEntity(FollowUp.class);
+                cost = recordCost(response.getResponse());
+                FollowUp result = response.entity();
                 if (result != null && usable(result.standaloneQuery())) {
                     standalone = result.standaloneQuery().trim();
                 }
                 extra = result == null || !enabled ? List.of() : result.expansions();
             } else {
-                Expansion result = call
+                var response = call
                         .system(systemPrompt)
                         .user("QUESTION (untrusted data):\n" + question)
                         .call()
-                        .entity(Expansion.class);
+                        .responseEntity(Expansion.class);
+                cost = recordCost(response.getResponse());
+                Expansion result = response.entity();
                 extra = result == null ? List.of() : result.queries();
             }
             var queries = new LinkedHashSet<String>();
@@ -126,11 +140,18 @@ public class QueryExpander {
             }
             log.info("Query plan modelCalls=1 followUp={} translated={} standalone='{}' searches={}: {}",
                     followUp, translate && !standalone.equals(question), standalone, queries.size(), queries);
-            return new QueryPlan(standalone, List.copyOf(queries));
+            return new QueryPlan(standalone, List.copyOf(queries), cost);
         } catch (RuntimeException failure) {
             log.warn("Query planning failed; searching the question alone errorType={}", failure.getClass().getSimpleName());
             return QueryPlan.of(question);
         }
+    }
+
+    private double recordCost(ChatResponse response) {
+        if (costMeter == null || response == null || response.getMetadata() == null) {
+            return 0;
+        }
+        return costMeter.record("plan", response.getMetadata().getModel(), response.getMetadata().getUsage());
     }
 
     /** True when the text has any Sinhala letters (U+0D80–U+0DFF). */

@@ -1,10 +1,13 @@
 package com.sujan.tripitaka.error;
 
+import com.sujan.tripitaka.cost.UsageGuard;
 import com.sujan.tripitaka.curriculum.CurriculumNotFoundException;
 import com.sujan.tripitaka.curriculum.CurriculumRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -37,6 +40,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CurriculumRequestException.class)
     public ProblemDetail badCurriculumRequest(CurriculumRequestException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    /** Over a usage limit: 429 with Retry-After, in English and Sinhala (the page shows this text as it is). */
+    @ExceptionHandler(UsageGuard.LimitReached.class)
+    public ResponseEntity<ProblemDetail> limited(UsageGuard.LimitReached exception) {
+        long minutes = Math.max(1, (exception.retryAfterSeconds() + 59) / 60);
+        String wait = minutes >= 60 ? "tomorrow" : "in " + minutes + " minutes";
+        String waitSi = minutes >= 60 ? "හෙට" : "මිනිත්තු " + minutes + " කින්";
+        String detail = exception.everyone()
+                ? "Today's question limit for the app has been reached. Please try again " + wait + ". "
+                        + "අද දිනයේ ප්‍රශ්න සීමාව ඉක්මවා ඇත. කරුණාකර " + waitSi + " නැවත උත්සාහ කරන්න."
+                : "You've asked many questions in a short time. Please try again " + wait + ". "
+                        + "ඔබ කෙටි කාලයක් තුළ බොහෝ ප්‍රශ්න ඇසුවා. කරුණාකර " + waitSi + " නැවත උත්සාහ කරන්න.";
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(exception.retryAfterSeconds()))
+                .body(ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, detail));
     }
 
     @ExceptionHandler(RuntimeException.class)

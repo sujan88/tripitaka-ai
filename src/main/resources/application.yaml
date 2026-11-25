@@ -68,6 +68,18 @@ rag:
   answer-cache:
     enabled: ${RAG_ANSWER_CACHE:true}
     ttl-days: ${RAG_ANSWER_CACHE_TTL_DAYS:30}
+  # Questions that reach the model (cache hits are free and never counted). Protects the OpenAI bill when the
+  # app is shared; counts are in memory and reset on restart.
+  limits:
+    per-person-per-hour: ${RAG_LIMIT_PER_HOUR:30}
+    per-person-per-day: ${RAG_LIMIT_PER_DAY:100}
+    everyone-per-day: ${RAG_LIMIT_EVERYONE_PER_DAY:1000}
+  # US dollars per million tokens, for the cost estimate in the logs and /actuator/metrics/tripitaka.ai.cost.usd.
+  # Check the provider's pricing page when it changes.
+  pricing:
+    gpt-5-4: { input: 2.50, output: 15.00 }
+    gpt-5-4-mini: { input: 0.75, output: 4.50 }
+    gpt-5-4-nano: { input: 0.20, output: 1.25 }
   # Final answers use this model. Follow-up rewriting and expansion share one call on query-expansion.model.
   answer-model: ${ANSWER_MODEL:gpt-5.4-mini}
   context:

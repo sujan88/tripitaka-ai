@@ -7,6 +7,8 @@ import com.sujan.tripitaka.model.AnswerDraft;
 import com.sujan.tripitaka.model.AskRequest;
 import com.sujan.tripitaka.model.AskResponse;
 import com.sujan.tripitaka.rag.ContextExpander;
+import com.sujan.tripitaka.cost.CostMeter;
+import com.sujan.tripitaka.cost.UsageGuard;
 import com.sujan.tripitaka.rag.CorpusReleaseStore;
 import com.sujan.tripitaka.rag.Layers;
 import com.sujan.tripitaka.rag.QueryExpander;
@@ -60,6 +62,8 @@ public class AskService {
     private final CurriculumRepository curriculum;
     private final AnswerCache answerCache;
     private final CorpusReleaseStore releases;
+    private final CostMeter costMeter;
+    private final UsageGuard usageGuard;
     /** Changes whenever a prompt or model that shapes answers changes, so old cached answers stop matching. */
     private final String answerFingerprint;
 
@@ -70,6 +74,8 @@ public class AskService {
                       CurriculumRepository curriculum,
                       AnswerCache answerCache,
                       CorpusReleaseStore releases,
+                      CostMeter costMeter,
+                      UsageGuard usageGuard,
                       @Value("${rag.answer-model}") String answerModel,
                       @Value("${rag.query-expansion.model:gpt-5.4}") String expansionModel,
                       @Value("${rag.query-expansion.enabled:true}") boolean expansionEnabled,
@@ -92,6 +98,8 @@ public class AskService {
         this.lessonTemplate = lessonPrompt.getContentAsString(StandardCharsets.UTF_8);
         this.answerCache = answerCache;
         this.releases = releases;
+        this.costMeter = costMeter;
+        this.usageGuard = usageGuard;
         this.chatMemory = chatMemory;
         this.retriever = retriever;
         this.collection = collection;
@@ -105,7 +113,15 @@ public class AskService {
         this.answerFingerprint = AnswerCache.key(fingerprint);
     }
 
+    /** For internal callers (evaluations): never rate-limited. */
     public AskResponse ask(AskRequest request) {
+        return ask(request, null);
+    }
+
+    /**
+     * @param person who is asking (see {@link AskController}), for the usage limits; null is not limited
+     */
+    public AskResponse ask(AskRequest request, String person) {
         long started = System.nanoTime();
         String conversationId = request.conversationId() == null
                 ? UUID.randomUUID().toString() : request.conversationId();
@@ -137,6 +153,8 @@ public class AskService {
         }
 
         // One model call turns the question (rewritten first if it is a follow-up) into the searches to run.
+        // Past the cache, this question costs money: count it against the limits first.
+        usageGuard.acquire(person);
         QueryPlan plan = queryExpander.plan(request.question(), recentConversation(conversationId), request.sinhala());
         String searchQuery = plan.standaloneQuery();
         List<Document> passages = retriever.withContext(
@@ -155,13 +173,18 @@ public class AskService {
                 .call()
                 .responseEntity(AnswerDraft.class);
 
-        logUsage(result.getResponse() == null ? null : result.getResponse().getMetadata().getModel(),
-                result.getResponse() == null ? null : result.getResponse().getMetadata().getUsage());
+        String model = result.getResponse() == null ? null : result.getResponse().getMetadata().getModel();
+        Usage usage = result.getResponse() == null ? null : result.getResponse().getMetadata().getUsage();
+        logUsage(model, usage);
+        double answerCost = costMeter.record("answer", model, usage);
         AskResponse response = AnswerAssembler.assemble(conversationId, searchQuery, result.entity(), passages);
 
         if (cacheKey != null && cacheable(passages, response)) {
             answerCache.put(cacheKey, response);
         }
+        log.info("Question cost planUsd={} answerUsd={} totalUsd={} language={} depth={} lesson={}",
+                usd(plan.costUsd()), usd(answerCost), usd(plan.costUsd() + answerCost),
+                request.sinhala() ? "si" : "en", request.depthOrDefault(), request.lessonId());
         log.info("Answered conversation={} depth={} lesson={} passages={} citations={} durationMs={}",
                 conversationId, request.depthOrDefault(), request.lessonId(), passages.size(), response.citations().size(),
                 (System.nanoTime() - started) / 1_000_000);
@@ -269,6 +292,10 @@ public class AskService {
             return "";
         }
         return text.length() <= HISTORY_CHARS ? text : text.substring(0, HISTORY_CHARS) + "…";
+    }
+
+    private static String usd(double value) {
+        return String.format(java.util.Locale.ROOT, "%.4f", value);
     }
 
     private static void logUsage(String model, Usage usage) {
