@@ -38,7 +38,8 @@ class QueryExpanderTest {
     private static QueryExpander expander(StubModel model) throws Exception {
         return new QueryExpander(ChatClient.builder(model).build(), true, "gpt-5.4",
                 new ByteArrayResource("EXPAND".getBytes(StandardCharsets.UTF_8)),
-                new ByteArrayResource("FOLLOW-UP".getBytes(StandardCharsets.UTF_8)));
+                new ByteArrayResource("FOLLOW-UP".getBytes(StandardCharsets.UTF_8)),
+                new ByteArrayResource("TRANSLATE".getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test
@@ -86,5 +87,44 @@ class QueryExpanderTest {
 
         assertEquals("and the second?", plan.standaloneQuery());
         assertEquals(List.of("and the second?", "x"), plan.queries());
+    }
+
+    @Test
+    void englishQuestionOnSinhalaTextsIsTranslatedInTheSameCallAndSearchedOnlyInSinhala() throws Exception {
+        var model = new StubModel(() ->
+                "{\"standaloneQuery\":\"කර්මය යනු කුමක්ද?\",\"expansions\":[\"චේතනාව කර්මය\"]}");
+
+        var plan = expander(model).plan("What is kamma?", null, true);
+
+        assertEquals(1, model.prompts.size());
+        assertTrue(model.prompts.get(0).getContents().contains("TRANSLATE"));
+        assertEquals("කර්මය යනු කුමක්ද?", plan.standaloneQuery());
+        assertEquals(List.of("කර්මය යනු කුමක්ද?", "චේතනාව කර්මය"), plan.queries()); // no English search
+    }
+
+    @Test
+    void sinhalaQuestionsAndEnglishTextsAreNotTranslated() throws Exception {
+        var model = new StubModel(() -> "{\"queries\":[\"x\"]}");
+
+        expander(model).plan("කර්මය යනු කුමක්ද?", null, true);
+        expander(model).plan("What is kamma?", null, false);
+
+        assertEquals(2, model.prompts.size());
+        model.prompts.forEach(p -> assertTrue(!p.getContents().contains("TRANSLATE")));
+    }
+
+    @Test
+    void sinhalaTypedInLatinLettersCountsAsNotSinhalaScript() {
+        assertTrue(!QueryExpander.hasSinhalaScript("karmaya kiyanne mokakda"));
+        assertTrue(QueryExpander.hasSinhalaScript("කර්මය"));
+    }
+
+    @Test
+    void failedTranslationFallsBackToTheQuestion() throws Exception {
+        var model = new StubModel(() -> {
+            throw new IllegalStateException("down");
+        });
+
+        assertEquals(List.of("What is kamma?"), expander(model).plan("What is kamma?", null, true).queries());
     }
 }

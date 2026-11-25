@@ -137,7 +137,7 @@ public class AskService {
         }
 
         // One model call turns the question (rewritten first if it is a follow-up) into the searches to run.
-        QueryPlan plan = queryExpander.plan(request.question(), recentConversation(conversationId));
+        QueryPlan plan = queryExpander.plan(request.question(), recentConversation(conversationId), request.sinhala());
         String searchQuery = plan.standaloneQuery();
         List<Document> passages = retriever.withContext(
                 retriever.searchQueries(plan.queries(), targetCollections, keyTextIds));

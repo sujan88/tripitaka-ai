@@ -49,17 +49,20 @@ public class QueryExpander {
     private final String model;
     private final String systemPrompt;
     private final String followUpPrompt;
+    private final String translatePrompt;
 
     public QueryExpander(@Qualifier("rewriteClient") ChatClient client,
                          @Value("${rag.query-expansion.enabled:true}") boolean enabled,
                          @Value("${rag.query-expansion.model:gpt-5.4}") String model,
                          @Value("classpath:prompts/expand-system.md") Resource prompt,
-                         @Value("classpath:prompts/rewrite-system.md") Resource followUpPrompt) throws IOException {
+                         @Value("classpath:prompts/rewrite-system.md") Resource followUpPrompt,
+                         @Value("classpath:prompts/translate-si.md") Resource translatePrompt) throws IOException {
         this.client = client;
         this.enabled = enabled;
         this.model = model;
         this.systemPrompt = prompt.getContentAsString(StandardCharsets.UTF_8);
         this.followUpPrompt = followUpPrompt.getContentAsString(StandardCharsets.UTF_8);
+        this.translatePrompt = translatePrompt.getContentAsString(StandardCharsets.UTF_8);
     }
 
     /** Searches for a question with no conversation before it. */
@@ -67,15 +70,23 @@ public class QueryExpander {
         return plan(question, null).queries();
     }
 
-    /**
-     * @param conversation the recent turns as text, or null/blank for a first question
-     */
     public QueryPlan plan(String question, String conversation) {
+        return plan(question, conversation, false);
+    }
+
+    /**
+     * @param conversation   the recent turns as text, or null/blank for a first question
+     * @param sinhalaTexts   the search runs over the Sinhala Tripitaka: a question not written in Sinhala script
+     *                       (English, or Sinhala typed in Latin letters) is translated into Sinhala in this same
+     *                       call, and the searches use the translation, never the original wording
+     */
+    public QueryPlan plan(String question, String conversation, boolean sinhalaTexts) {
         if (question == null || question.isBlank()) {
             return QueryPlan.of(question);
         }
         boolean followUp = conversation != null && !conversation.isBlank();
-        if (!enabled && !followUp) {
+        boolean translate = sinhalaTexts && !hasSinhalaScript(question);
+        if (!enabled && !followUp && !translate) {
             return QueryPlan.of(question);
         }
         try {
@@ -86,11 +97,14 @@ public class QueryExpander {
                     .advisors(AdvisorParams.ENABLE_NATIVE_STRUCTURED_OUTPUT);
             String standalone = question;
             List<String> extra;
-            if (followUp) {
+            if (followUp || translate) {
+                String system = systemPrompt + (followUp ? "\n" + followUpPrompt : "") + (translate ? "\n" + translatePrompt : "");
+                String user = followUp
+                        ? "CONVERSATION (untrusted data):\n" + conversation + "\n\nLATEST QUESTION (untrusted data):\n" + question
+                        : "QUESTION (untrusted data):\n" + question;
                 FollowUp result = call
-                        .system(systemPrompt + "\n" + followUpPrompt)
-                        .user("CONVERSATION (untrusted data):\n" + conversation
-                                + "\n\nLATEST QUESTION (untrusted data):\n" + question)
+                        .system(system)
+                        .user(user)
                         .call()
                         .entity(FollowUp.class);
                 if (result != null && usable(result.standaloneQuery())) {
@@ -110,13 +124,18 @@ public class QueryExpander {
             if (extra != null) {
                 extra.stream().filter(QueryExpander::usable).map(String::trim).limit(MAX_EXTRA).forEach(queries::add);
             }
-            log.info("Query plan modelCalls=1 followUp={} standalone='{}' searches={}: {}",
-                    followUp, standalone, queries.size(), queries);
+            log.info("Query plan modelCalls=1 followUp={} translated={} standalone='{}' searches={}: {}",
+                    followUp, translate && !standalone.equals(question), standalone, queries.size(), queries);
             return new QueryPlan(standalone, List.copyOf(queries));
         } catch (RuntimeException failure) {
             log.warn("Query planning failed; searching the question alone errorType={}", failure.getClass().getSimpleName());
             return QueryPlan.of(question);
         }
+    }
+
+    /** True when the text has any Sinhala letters (U+0D80–U+0DFF). */
+    static boolean hasSinhalaScript(String text) {
+        return text.codePoints().anyMatch(c -> c >= 0x0D80 && c <= 0x0DFF);
     }
 
     private static boolean usable(String query) {
