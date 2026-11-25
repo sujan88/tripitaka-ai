@@ -91,9 +91,11 @@ public class UsageGuard {
         Counts c = people.getOrDefault(person, new Counts(hourNow, 0, dayNow, 0));
         int inHour = c.hour() == hourNow ? c.inHour() : 0;
         if (c.inDay() >= perPersonPerDay) {
+            log.info("Daily question limit reached person={} limit={}", person, perPersonPerDay);
             throw new LimitReached(secondsToNextDay, false);
         }
         if (inHour >= perPersonPerHour) {
+            log.info("Hourly question limit reached person={} limit={}", person, perPersonPerHour);
             throw new LimitReached((hourNow + 1) * 3600 - now.getEpochSecond(), false);
         }
         people.put(person, new Counts(hourNow, inHour + 1, dayNow, c.inDay() + 1));
