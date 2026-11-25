@@ -1,5 +1,8 @@
 // Shared helpers for the guided learning pages: DOM building, AI/Curated badges, header, progress in localStorage.
 // All text from the API is inserted as text nodes, never as HTML.
+import { LANG, setLang, T } from '/ui/i18n.js';
+
+export { LANG, T };
 
 /** h('a', {href: '/', class: 'btn'}, 'Home', child, ...) builds an element; null/false children are skipped. */
 export function h(tag, props = {}, ...children) {
@@ -51,21 +54,20 @@ function sparkle() {
 }
 
 /** Blue AI badge: answers, mental models, follow-up suggestions, "AI explains inside each lesson". */
-export const aiBadge = (text = 'AI') => h('span', { class: 'badge badge-ai' }, sparkle(), text);
+export const aiBadge = (text = T.ai) => h('span', { class: 'badge badge-ai' }, sparkle(), text);
 
 /** Green Curated badge: paths, lessons, daily sutta, quiz. Says "reviewed by a teacher" once reviewed. */
-export function curatedBadge(reviewedBy, text = 'Curated') {
-  return h('span', { class: 'badge badge-curated', title: reviewedBy ? `Reviewed by ${reviewedBy}` : null },
-    reviewedBy ? `${text} · reviewed by a teacher` : text);
+export function curatedBadge(reviewedBy, text = T.curated) {
+  return h('span', { class: 'badge badge-curated', title: reviewedBy || null },
+    reviewedBy ? `${text} · ${T.reviewed}` : text);
 }
 
 /** Grey badge on the sources list. */
-export const originalBadge = () => h('span', { class: 'badge badge-original' }, 'Original texts · not AI');
+export const originalBadge = () => h('span', { class: 'badge badge-original' }, T.originalTexts);
 
 // ---------- Small pieces ----------
 
-const LEVEL_NAMES = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
-export const levelName = level => LEVEL_NAMES[level] || level;
+export const levelName = level => (level === 'all' ? T.levelAll : T[level] || level);
 export const levelPill = level => h('span', { class: `pill pill-${level}` }, levelName(level));
 
 export function progressBar(done, total, label = 'Path progress') {
@@ -96,20 +98,21 @@ function logo() {
   return svg;
 }
 
+// The free conversation page is per language: the English chat or the Sinhala chat (si.html).
 export const NAV = [
-  { id: 'home', label: 'Home', href: '/' },
-  { id: 'paths', label: 'Learning paths', href: '/#paths' },
-  { id: 'ask', label: 'Ask', href: '/lesson.html' },
-  { id: 'saved', label: 'Saved', href: '/saved.html' },
-  { id: 'chat', label: 'Conversation', href: '/chat.html' },
+  { id: 'home', label: T.navHome, href: '/' },
+  { id: 'paths', label: T.navPaths, href: '/#paths' },
+  { id: 'ask', label: T.navAsk, href: '/lesson.html' },
+  { id: 'saved', label: T.navSaved, href: '/saved.html' },
+  { id: 'chat', label: T.navChat, href: LANG === 'si' ? '/si.html' : '/chat.html' },
 ];
 
 // Bottom navigation on phones (docs/design-learning-ui/Mobile.dc.html): Home · Paths · Ask · Saved.
 const BOTTOM_NAV = [
-  { id: 'home', label: 'Home', href: '/', icon: 'M4 11l8-7 8 7v9h-5v-6H9v6H4z' },
-  { id: 'paths', label: 'Paths', href: '/#paths', icon: 'M5 19c3-6 11-2 14-14M5 19h4M19 5v4' },
-  { id: 'ask', label: 'Ask', href: '/lesson.html', icon: 'M4 5h16v11H9l-5 4z' },
-  { id: 'saved', label: 'Saved', href: '/saved.html', icon: 'M6 4h12v16l-6-4-6 4z' },
+  { id: 'home', label: T.navHome, href: '/', icon: 'M4 11l8-7 8 7v9h-5v-6H9v6H4z' },
+  { id: 'paths', label: T.navPathsShort, href: '/#paths', icon: 'M5 19c3-6 11-2 14-14M5 19h4M19 5v4' },
+  { id: 'ask', label: T.navAsk, href: '/lesson.html', icon: 'M4 5h16v11H9l-5 4z' },
+  { id: 'saved', label: T.navSaved, href: '/saved.html', icon: 'M6 4h12v16l-6-4-6 4z' },
 ];
 
 function navIcon(d) {
@@ -143,14 +146,28 @@ export function renderHeader(active) {
   const header = document.getElementById('site-header');
   header.className = 'site-header';
   header.replaceChildren(h('div', { class: 'inner' },
-    h('a', { class: 'brand', href: '/' }, logo(), 'Tripitaka companion'),
+    h('a', { class: 'brand', href: '/' }, logo(), T.appTitle),
     h('nav', { class: 'main-nav', 'aria-label': 'Main' },
       NAV.map(item => h('a', { href: item.href, 'aria-current': item.id === active ? 'page' : null }, item.label))),
-    h('div', { class: 'lang-switch', role: 'group', 'aria-label': 'Language' },
-      h('a', { href: '/', 'aria-current': 'true', lang: 'en' }, 'English'),
-      h('a', { href: '/si.html', lang: 'si', 'aria-label': 'සිංහල (Sinhala)' },
-        h('span', { class: 'long' }, 'සිංහල'), h('span', { class: 'short', 'aria-hidden': 'true' }, 'සිං')))));
+    languageSwitch()));
   renderBottomNav(active);
+}
+
+/** Same page in the other language: the link sets ?lang=, which i18n.js remembers. */
+function languageLink(value) {
+  const url = new URL(location.href);
+  url.searchParams.set('lang', value);
+  return url.pathname + url.search + url.hash;
+}
+
+function languageSwitch() {
+  const option = (value, long, short, label) => h('a', {
+    href: languageLink(value), lang: value, 'aria-current': LANG === value ? 'true' : null, 'aria-label': label,
+    onclick: () => setLang(value),
+  }, h('span', { class: 'long' }, long), h('span', { class: 'short', 'aria-hidden': 'true' }, short));
+  return h('div', { class: 'lang-switch', role: 'group', 'aria-label': 'Language / භාෂාව' },
+    option('en', 'English', 'EN', 'English'),
+    option('si', 'සිංහල', 'සිං', 'සිංහල (Sinhala)'));
 }
 
 export function errorBox(message) {

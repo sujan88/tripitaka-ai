@@ -6,12 +6,11 @@ import { marked } from 'https://cdn.jsdelivr.net/npm/marked@14/lib/marked.esm.js
 import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.es.mjs';
 import {
   aiBadge, curatedBadge, errorBox, getJson, h, lessonUrl, originalBadge, param, pathUrl, progress, progressBar,
-  renderBottomNav, renderHeader,
+  renderBottomNav, renderHeader, LANG, T,
 } from '/ui/learn.js';
 
 const page = document.getElementById('lesson-page');
-const DEPTHS = [['simple', 'Simple'], ['standard', 'Standard'], ['deep', 'Go deeper'], ['practice', 'Practise it']];
-const HEADINGS = { simple: 'In simple words', standard: 'What the texts say', deep: 'Going deeper', practice: 'Putting it into practice' };
+const DEPTHS = ['simple', 'standard', 'deep', 'practice'];
 
 // ---------- Talking to /api/ask ----------
 
@@ -19,7 +18,7 @@ async function ask(body) {
   const response = await fetch('/api/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ language: 'en', ...body }),
+    body: JSON.stringify({ language: LANG, ...body }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.detail || `Request failed (${response.status})`);
@@ -37,16 +36,17 @@ export function formatRef(textId) {
 function sourceLink(textId) {
   if (/^(dn|mn|sn|an|dhp|snp|ud|iti|thag|thig|kp)\d[\d.-]*$/.test(textId)) {
     return h('a', { href: `https://suttacentral.net/${encodeURIComponent(textId)}`, target: '_blank', rel: 'noopener' },
-      'Read the whole sutta on SuttaCentral');
+      T.readOnSuttaCentral);
   }
   if (/^(dn|mn|sn|an|kn|ap|atta-ap|anya-vm)(-[a-z0-9]+)+$/.test(textId)) {
     return h('a', { href: `https://tipitaka.lk/${encodeURIComponent(textId)}/sinh`, target: '_blank', rel: 'noopener' },
-      'Read it on tipitaka.lk');
+      T.readOnTipitakaLk);
   }
   return null;
 }
 
 const shortLayer = layer => (layer || 'Sutta').replace(/ \(.*\)$/, '');
+const layerName = layer => T.layers[layer] || layer;
 
 /** "Suttas: MN 135, AN 6.63. Commentary: …" from the citations, so the basis is visible at a glance. */
 function basis(citations) {
@@ -54,24 +54,25 @@ function basis(citations) {
   for (const c of citations) {
     const layer = shortLayer(c.layer);
     if (!byLayer.has(layer)) byLayer.set(layer, new Set());
-    byLayer.get(layer).add(formatRef(c.textId));
+    // tipitaka.lk keys (dn-1-2) mean nothing to a reader; their titles do.
+    byLayer.get(layer).add(c.textId.includes('-') ? c.title : formatRef(c.textId));
   }
-  if (!byLayer.size) return 'No passage was cited, so treat this answer as unverified.';
+  if (!byLayer.size) return T.noCitation;
   return [...byLayer].map(([layer, refs]) =>
-    `${layer === 'Sutta' ? 'Suttas' : `${layer} (interpretation, not the Buddha’s words)`}: ${[...refs].join(', ')}.`).join(' ');
+    `${layer === 'Sutta' ? T.suttas : T.interpretation(layerName(layer))}: ${[...refs].join(', ')}.`).join(' ');
 }
 
 function explanation(data, heading) {
   const prose = h('div', { class: 'prose' });
   prose.innerHTML = DOMPurify.sanitize(marked.parse(data.answer || ''));
   return h('section', { class: 'ai-card', 'aria-label': heading },
-    h('div', { class: 'card-head' }, h('h2', {}, heading), aiBadge('AI explanation · based on the sources below')),
+    h('div', { class: 'card-head' }, h('h2', {}, heading), aiBadge(T.aiExplanation)),
     prose,
-    data.keyConcepts?.length ? h('div', { class: 'concepts', 'aria-label': 'Key concepts' },
+    data.keyConcepts?.length ? h('div', { class: 'concepts', 'aria-label': T.keyConcepts },
       data.keyConcepts.map(c => h('span', {}, c))) : null,
     h('p', { class: 'faint' }, basis(data.citations || [])),
     data.unknowns?.length ? h('div', {},
-      h('p', { class: 'faint', style: { fontWeight: 600 } }, 'Not settled by these passages'),
+      h('p', { class: 'faint', style: { fontWeight: 600 } }, T.notSettled),
       h('ul', { class: 'unknowns' }, data.unknowns.map(u => h('li', {}, u)))) : null);
 }
 
@@ -108,26 +109,26 @@ function mentalModel(model) {
     ? edges.find(e => nodes.findIndex(n => n.id === e.to) < nodes.findIndex(n => n.id === e.from))
     : null;
   return h('section', { class: 'card', 'aria-labelledby': 'mm-h' },
-    h('div', { class: 'card-head' }, h('h2', { id: 'mm-h', style: { fontSize: '17px' } }, model.title || 'Mental model'),
-      aiBadge('AI-drawn diagram')),
-    h('div', { class: 'mm-flow', role: 'img', 'aria-label': `Concept map: ${nodes.map(n => n.label).join(', then ')}` }, flow),
+    h('div', { class: 'card-head' }, h('h2', { id: 'mm-h', style: { fontSize: '17px' } }, model.title || T.mentalModel),
+      aiBadge(T.aiDiagram)),
+    h('div', { class: 'mm-flow', role: 'img', 'aria-label': `${T.conceptMap}: ${nodes.map(n => n.label).join(T.then)}` }, flow),
     loop ? h('p', { class: 'muted', style: { fontSize: '14px' } },
-      `↻ ${label.get(loop.from)} ${loop.label || 'leads back to'} ${label.get(loop.to)}, so the cycle continues.`) : null,
+      `↻ ${label.get(loop.from)} ${loop.label || T.leadsBack} ${label.get(loop.to)}, ${T.cycleContinues}`) : null,
     nodes.some(n => n.detail) ? h('ol', { class: 'mm-parts' }, nodes.map(node => {
       const out = edges.filter(e => e.from === node.id && label.has(e.to));
       return h('li', {}, h('strong', {}, node.label), node.detail ? [': ', node.detail] : null,
         out.length ? h('div', { class: 'links' },
-          out.map((e, i) => [i ? '; ' : '', `${e.label || 'leads to'} → ${label.get(e.to)}`])) : null);
+          out.map((e, i) => [i ? '; ' : '', `${e.label || T.leadsTo} → ${label.get(e.to)}`])) : null);
     })) : null);
 }
 
 function sources(citations) {
   if (!citations?.length) return null;
   return h('section', { 'aria-labelledby': 'src-h', style: { display: 'flex', flexDirection: 'column', gap: '12px' } },
-    h('div', { class: 'card-head' }, h('h2', { id: 'src-h', style: { fontSize: '17px' } }, 'Sources'), originalBadge()),
+    h('div', { class: 'card-head' }, h('h2', { id: 'src-h', style: { fontSize: '17px' } }, T.sources), originalBadge()),
     citations.map(c => h('details', { class: 'source' },
       h('summary', {},
-        h('span', { class: `layer ${shortLayer(c.layer) === 'Sutta' ? 'layer-sutta' : 'layer-other'}` }, shortLayer(c.layer)),
+        h('span', { class: `layer ${shortLayer(c.layer) === 'Sutta' ? 'layer-sutta' : 'layer-other'}` }, layerName(shortLayer(c.layer))),
         h('strong', {}, formatRef(c.textId)),
         h('span', { class: 'title' }, [c.title, c.nikaya].filter(Boolean).join(' · '))),
       h('p', {}, c.excerpt),
@@ -152,28 +153,28 @@ function answerArea({ question, lessonId, slot, followSlot }) {
   slot.replaceChildren(switcher, body, turns);
 
   function drawSwitcher() {
-    switcher.replaceChildren(...DEPTHS.map(([id, label]) => h('button', {
+    switcher.replaceChildren(...DEPTHS.map(id => h('button', {
       type: 'button', class: 'toggle', 'aria-pressed': String(id === depth), onclick: () => show(id),
-    }, label)));
+    }, T.depths[id])));
   }
 
   async function show(next) {
     depth = next;
     drawSwitcher();
     body.setAttribute('aria-busy', 'true');
-    body.replaceChildren(loading('Searching the texts and writing an explanation…'));
+    body.replaceChildren(loading(T.searchingWriting));
     try {
       if (!answers.has(depth)) answers.set(depth, ask({ question, lessonId, depth }));
       const data = await answers.get(depth);
       if (next !== depth) return; // another depth was picked meanwhile
       conversationId = data.conversationId;
-      body.replaceChildren(explanation(data, HEADINGS[depth]), mentalModel(data.mentalModel), sources(data.citations));
+      body.replaceChildren(explanation(data, T.headings[depth]), mentalModel(data.mentalModel), sources(data.citations));
       followUps(data.followUps || []);
     } catch (failure) {
       answers.delete(next);
       if (next !== depth) return;
-      body.replaceChildren(errorBox(`Could not get an answer. ${failure.message}`),
-        h('div', {}, h('button', { type: 'button', class: 'btn', onclick: () => show(next) }, 'Try again')));
+      body.replaceChildren(errorBox(`${T.couldNotAnswer} ${failure.message}`),
+        h('div', {}, h('button', { type: 'button', class: 'btn', onclick: () => show(next) }, T.tryAgain)));
     } finally {
       body.removeAttribute('aria-busy');
     }
@@ -181,24 +182,24 @@ function answerArea({ question, lessonId, slot, followSlot }) {
 
   async function askFollowUp(text) {
     const turn = h('section', { style: { display: 'flex', flexDirection: 'column', gap: '16px' } },
-      h('h2', { class: 'turn-q' }, text), loading('Searching the texts…'));
+      h('h2', { class: 'turn-q' }, text), loading(T.searching));
     turns.append(turn);
     turn.scrollIntoView({ behavior: 'smooth', block: 'start' });
     try {
       const data = await ask({ question: text, lessonId, depth, conversationId });
       conversationId = data.conversationId;
-      turn.replaceChildren(h('h2', { class: 'turn-q' }, text), explanation(data, 'Answer'),
+      turn.replaceChildren(h('h2', { class: 'turn-q' }, text), explanation(data, T.answer),
         mentalModel(data.mentalModel), sources(data.citations));
       followUps(data.followUps || []);
     } catch (failure) {
-      turn.replaceChildren(h('h2', { class: 'turn-q' }, text), errorBox(`Could not get an answer. ${failure.message}`));
+      turn.replaceChildren(h('h2', { class: 'turn-q' }, text), errorBox(`${T.couldNotAnswer} ${failure.message}`));
     }
   }
 
   function followUps(suggestions) {
-    const input = h('input', { id: 'fu', type: 'text', class: 'text-input', placeholder: 'Your question', maxlength: 1000, required: true });
+    const input = h('input', { id: 'fu', type: 'text', class: 'text-input', placeholder: T.yourQuestionPlaceholder, maxlength: 1000, required: true });
     followSlot.replaceChildren(h('section', { class: 'card' },
-      h('div', { class: 'card-head' }, h('h2', {}, 'Ask a follow-up'), aiBadge('AI suggestions')),
+      h('div', { class: 'card-head' }, h('h2', {}, T.askFollowUp), aiBadge(T.aiSuggestions)),
       suggestions.map(s => h('button', {
         type: 'button', class: 'question-link on-white', style: { border: 0, font: 'inherit', textAlign: 'left', cursor: 'pointer' },
         onclick: () => askFollowUp(s),
@@ -209,8 +210,8 @@ function answerArea({ question, lessonId, slot, followSlot }) {
           const text = input.value.trim();
           if (text) { input.value = ''; askFollowUp(text); }
         },
-      }, h('label', { for: 'fu', class: 'faint', style: { color: 'var(--muted)' } }, 'Or type your own'), input,
-        h('button', { type: 'submit', class: 'btn' }, 'Ask'))));
+      }, h('label', { for: 'fu', class: 'faint', style: { color: 'var(--muted)' } }, T.typeOwn), input,
+        h('button', { type: 'submit', class: 'btn' }, T.askButton))));
   }
 
   drawSwitcher();
@@ -230,12 +231,12 @@ function quiz(lesson) {
       const right = i === q.answer;
       event.currentTarget.dataset.result = right ? 'right' : 'wrong';
       feedback.textContent = right
-        ? `Right. ${q.explanation || ''}`
-        : `Not quite. Look again at ${lesson.keyText} and try another answer.`;
+        ? `${T.right} ${q.explanation || ''}`
+        : T.notQuite(lesson.keyText);
     },
   }, text));
   return h('section', { class: 'card', 'aria-labelledby': 'check-h' },
-    h('div', { class: 'card-head' }, h('h2', { id: 'check-h', style: { fontSize: '17px' } }, 'Check yourself'),
+    h('div', { class: 'card-head' }, h('h2', { id: 'check-h', style: { fontSize: '17px' } }, T.checkYourself),
       curatedBadge(q.reviewedBy)),
     h('p', { style: { fontSize: '16px' } }, q.question),
     h('div', { class: 'quiz-options' }, options),
@@ -251,9 +252,9 @@ function reflect(lesson) {
   } });
   note.value = progress.note(lesson.id);
   return h('section', { class: 'card card-sunk' },
-    h('h2', {}, 'Reflect'),
+    h('h2', {}, T.reflect),
     h('p', { style: { fontSize: '15px', lineHeight: 1.6 } }, lesson.reflectPrompt),
-    h('label', { for: 'note', class: 'faint', style: { color: 'var(--muted)' } }, 'Private note · kept in this browser only'),
+    h('label', { for: 'note', class: 'faint', style: { color: 'var(--muted)' } }, T.privateNote),
     note);
 }
 
@@ -262,13 +263,13 @@ function lessonNav(lesson) {
   const done = progress.isDone(lesson.id);
   return h('nav', { class: 'lesson-nav', 'aria-label': 'Lesson navigation' },
     lesson.previous
-      ? h('a', { class: 'btn', href: lessonUrl(lesson.previous.id) }, `Previous: ${lesson.previous.title}`)
-      : h('a', { class: 'btn', href: pathUrl(lesson.path.id) }, 'Back to the path'),
+      ? h('a', { class: 'btn', href: lessonUrl(lesson.previous.id) }, T.previous(lesson.previous.title))
+      : h('a', { class: 'btn', href: pathUrl(lesson.path.id) }, T.backToPath),
     lesson.next
       ? h('a', { class: 'btn btn-primary', href: lessonUrl(lesson.next.id), onclick: finish },
-          done ? `Next: ${lesson.next.title}` : `Mark done · Next: ${lesson.next.title}`)
+          done ? T.next(lesson.next.title) : T.markDoneNext(lesson.next.title))
       : h('a', { class: 'btn btn-primary', href: pathUrl(lesson.path.id), onclick: finish },
-          done ? 'Back to the path' : 'Mark done · Finish the path'));
+          done ? T.backToPath : T.markDoneFinish));
 }
 
 /** A square image with the lesson's curated key point and its sutta reference, saved as a PNG. */
@@ -307,7 +308,7 @@ function shareCard(lesson) {
     ctx.fillText(lesson.keyText, 90, size - 150);
     ctx.font = `400 26px ${font}`;
     ctx.fillStyle = '#6B655B';
-    ctx.fillText('Tripitaka companion · curated lesson', 90, size - 95);
+    ctx.fillText(T.shareFooter, 90, size - 95);
     canvas.toBlob(blob => {
       const url = URL.createObjectURL(blob);
       const link = h('a', { href: url, download: `${lesson.id}.png` });
@@ -318,9 +319,9 @@ function shareCard(lesson) {
     }, 'image/png');
   };
   return h('section', { class: 'card', style: { gap: '8px' } },
-    h('h2', {}, 'Share this lesson'),
-    h('p', { class: 'muted', style: { fontSize: '14px' } }, 'Makes an image card with the key point and the sutta reference.'),
-    h('button', { type: 'button', class: 'btn', onclick: make }, 'Create share card'));
+    h('h2', {}, T.share),
+    h('p', { class: 'muted', style: { fontSize: '14px' } }, T.shareText),
+    h('button', { type: 'button', class: 'btn', onclick: make }, T.createShareCard));
 }
 
 function lessonBar(lesson) {
@@ -328,8 +329,8 @@ function lessonBar(lesson) {
   header.className = 'lesson-bar';
   header.replaceChildren(h('div', { class: 'inner' },
     h('a', { class: 'back', href: pathUrl(lesson.path.id) }, '‹ ', lesson.path.title),
-    progressBar(lesson.number, lesson.of, 'Path progress'),
-    h('span', { class: 'muted', style: { fontSize: '14px' } }, `Lesson ${lesson.number} of ${lesson.of}`)));
+    progressBar(lesson.number, lesson.of, lesson.path.title),
+    h('span', { class: 'muted', style: { fontSize: '14px' } }, T.lessonNofM(lesson.number, lesson.of))));
   renderBottomNav('paths');
 }
 
@@ -338,14 +339,14 @@ function lessonBar(lesson) {
 async function lessonMode(id) {
   let lesson;
   try {
-    lesson = await getJson(`/api/lessons/${encodeURIComponent(id)}`);
+    lesson = await getJson(`/api/lessons/${encodeURIComponent(id)}?lang=${LANG}`);
   } catch (failure) {
     renderHeader('paths');
-    page.replaceChildren(h('article', {}, errorBox(`Could not load this lesson. ${failure.message}`),
-      h('a', { href: '/#paths' }, 'All learning paths')));
+    page.replaceChildren(h('article', {}, errorBox(`${T.loadLessonError} ${failure.message}`),
+      h('a', { href: '/#paths' }, T.allPaths)));
     return;
   }
-  document.title = `Lesson: ${lesson.title} · Tripitaka companion`;
+  document.title = `${lesson.title} · ${T.appTitle}`;
   lessonBar(lesson);
   progress.visit(lesson.path.id, lesson.id);
 
@@ -355,8 +356,8 @@ async function lessonMode(id) {
     h('article', {},
       h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
         h('div', { class: 'title-row' },
-          h('span', { class: 'eyebrow' }, `Lesson ${lesson.number} · Key text ${lesson.keyText}`),
-          curatedBadge(lesson.reviewedBy, 'Curated lesson')),
+          h('span', { class: 'eyebrow' }, T.lessonKey(lesson.number, lesson.keyText)),
+          curatedBadge(lesson.reviewedBy, T.curatedLesson)),
         h('h1', { class: 'lesson-title' }, lesson.title),
         h('p', { class: 'muted' }, lesson.question)),
       answerSlot,
@@ -368,33 +369,33 @@ async function lessonMode(id) {
 
 function questionMode(question) {
   renderHeader('ask');
-  document.title = `${question} · Tripitaka companion`;
+  document.title = `${question} · ${T.appTitle}`;
   const answerSlot = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '22px' } });
   const followSlot = h('div');
   page.replaceChildren(
     h('article', {},
       h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
-        h('div', { class: 'title-row' }, h('span', { class: 'eyebrow' }, 'Your question'), aiBadge('AI answer')),
+        h('div', { class: 'title-row' }, h('span', { class: 'eyebrow' }, T.yourQuestion), aiBadge(T.aiAnswer)),
         h('h1', { class: 'lesson-title' }, question)),
       answerSlot),
     h('aside', {}, followSlot,
-      h('section', { class: 'card card-sunk' }, h('h2', {}, 'Learn it step by step'),
-        h('p', { style: { fontSize: '15px' } }, 'Curated paths take you through the key suttas in order.'),
-        h('a', { class: 'btn', href: '/#paths' }, 'Choose a learning path'))));
+      h('section', { class: 'card card-sunk' }, h('h2', {}, T.learnStepByStep),
+        h('p', { style: { fontSize: '15px' } }, T.pathsHelp),
+        h('a', { class: 'btn', href: '/#paths' }, T.choosePathButton))));
   answerArea({ question, lessonId: null, slot: answerSlot, followSlot });
 }
 
 function askMode() {
   renderHeader('ask');
   const input = h('input', { id: 'ask', name: 'q', class: 'text-input', type: 'text', maxlength: 1000, required: true,
-    placeholder: 'Ask anything about the Dhamma, e.g. “What is reborn if there is no soul?”' });
+    placeholder: T.askPlaceholder });
   page.replaceChildren(h('article', {},
-    h('h1', { class: 'lesson-title' }, 'Ask a question'),
-    h('p', { class: 'lead' }, 'The answer is written by AI from the Tripitaka, with a concept map and the sources it used.'),
+    h('h1', { class: 'lesson-title' }, T.askTitle),
+    h('p', { class: 'lead' }, T.askLead),
     h('form', { class: 'ask-form', action: '/lesson.html', method: 'get' },
-      h('label', { for: 'ask', class: 'sr-only' }, 'Ask a question'), input,
-      h('button', { class: 'btn btn-primary', type: 'submit' }, 'Ask')),
-    h('div', { class: 'legend' }, aiBadge('AI'), h('span', {}, 'Answers are written by AI and always show their sources.'))));
+      h('label', { for: 'ask', class: 'sr-only' }, T.askLabel), input,
+      h('button', { class: 'btn btn-primary', type: 'submit' }, T.askButton)),
+    h('div', { class: 'legend' }, aiBadge(T.ai), h('span', {}, T.askLegend))));
   input.focus();
 }
 

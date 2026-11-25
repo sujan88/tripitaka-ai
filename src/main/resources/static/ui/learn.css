@@ -258,7 +258,7 @@ aside .card h2 { font-size: 16px; }
   .brand { font-size: 18px; }
   .brand svg { display: none; }
   .lang-switch { border-color: var(--border-strong); }
-  .lang-switch a[lang="en"] { display: none; }
+  .lang-switch a[aria-current="true"] { display: none; }
   .lang-switch a { min-height: 40px; display: inline-flex; align-items: center; padding: 0 12px; }
   .lang-switch .long { display: none; }
   .lang-switch .short { display: inline; font-size: 17px; }

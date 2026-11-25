@@ -14,13 +14,14 @@
 
   <main class="page">
     <section aria-labelledby="ask-h" class="section-head" id="ask-section" style="gap: 14px">
-      <h1 id="ask-h" class="page-title">Learn the Dhamma, step by step</h1>
-      <p class="lead">Follow a guided path, or ask any question. Every answer cites the suttas it comes from.</p>
+      <h1 id="ask-h" class="page-title" data-i18n="homeTitle">Learn the Dhamma, step by step</h1>
+      <p class="lead" data-i18n="homeLead">Follow a guided path, or ask any question. Every answer cites the suttas it comes from.</p>
       <form id="ask-form" class="ask-form" action="/lesson.html" method="get">
-        <label for="ask" class="sr-only">Ask a question</label>
+        <label for="ask" class="sr-only" data-i18n="askLabel">Ask a question</label>
         <input id="ask" name="q" class="text-input" type="text" maxlength="1000" required
+               data-i18n-placeholder="askPlaceholder"
                placeholder="Ask anything about the Dhamma, e.g. “What is reborn if there is no soul?”">
-        <button class="btn btn-primary" type="submit">Ask</button>
+        <button class="btn btn-primary" type="submit" data-i18n="askButton">Ask</button>
       </form>
       <div class="legend" id="legend"></div>
     </section>
@@ -35,9 +36,9 @@
       <div style="display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px">
         <div class="section-head">
           <div class="title-row" id="paths-title">
-            <h2 id="paths-h" class="section-title">Choose a learning path</h2>
+            <h2 id="paths-h" class="section-title" data-i18n="choosePath">Choose a learning path</h2>
           </div>
-          <p class="muted" style="font-size: 15px">Each path is a short series of lessons: read a sutta, ask, reflect, practise.</p>
+          <p class="muted" style="font-size: 15px" data-i18n="pathsLead">Each path is a short series of lessons: read a sutta, ask, reflect, practise.</p>
         </div>
         <div role="group" aria-label="Filter by level" class="toggle-group" id="level-filter"></div>
       </div>
@@ -47,16 +48,16 @@
     <section aria-labelledby="q-h" id="questions" style="display: flex; flex-direction: column; gap: 18px">
       <div class="section-head">
         <div class="title-row" id="questions-title">
-          <h2 id="q-h" class="section-title">Dhamma questions, answered from the texts</h2>
+          <h2 id="q-h" class="section-title" data-i18n="dhammaQuestions">Dhamma questions, answered from the texts</h2>
         </div>
-        <p class="muted" style="font-size: 15px">Questions chosen by people; the answer is written by AI from the texts, with a concept map and what to read next.</p>
+        <p class="muted" style="font-size: 15px" data-i18n="questionsLead">Questions chosen by people; the answer is written by AI from the texts, with a concept map and what to read next.</p>
       </div>
       <div class="grid-themes" id="themes"></div>
     </section>
 
     <footer class="site-footer">
-      <span>Texts: SuttaCentral (CC0) and the Buddha Jayanthi Tripitaka via tipitaka.lk (CC BY-ND 4.0).</span>
-      <span>Answers are study aids. Check important points with a teacher.</span>
+      <span data-i18n="footerTexts">Texts: SuttaCentral (CC0) and the Buddha Jayanthi Tripitaka via tipitaka.lk (CC BY-ND 4.0).</span>
+      <span data-i18n="footerAid">Answers are study aids. Check important points with a teacher.</span>
     </footer>
   </main>
 

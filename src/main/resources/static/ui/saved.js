@@ -1,10 +1,14 @@
-import { getJson, h, lessonUrl, progress, renderHeader } from '/ui/learn.js';
+import { getJson, h, lessonUrl, progress, renderHeader, LANG, T } from '/ui/learn.js';
+import { applyStaticText } from '/ui/i18n.js';
+
+applyStaticText();
+document.title = `${T.navSaved} · ${T.appTitle}`;
 
 renderHeader('saved');
 
 const lessons = new Map();
 const lesson = id => {
-  if (!lessons.has(id)) lessons.set(id, getJson(`/api/lessons/${encodeURIComponent(id)}`).catch(() => null));
+  if (!lessons.has(id)) lessons.set(id, getJson(`/api/lessons/${encodeURIComponent(id)}?lang=${LANG}`).catch(() => null));
   return lessons.get(id);
 };
 
@@ -17,7 +21,7 @@ async function render() {
       h('a', { href: lessonUrl(id), style: { fontWeight: 600 } }, l ? `${l.title} (${l.keyText})` : id),
       l ? h('p', { class: 'faint' }, l.reflectPrompt) : null,
       h('p', { style: { whiteSpace: 'pre-wrap', fontSize: '15px' } }, text));
-  })) : [h('p', { class: 'muted' }, 'No notes yet. Each lesson has a private note under “Reflect”.')]));
+  })) : [h('p', { class: 'muted' }, T.noNotes)]));
 
   const done = Object.entries(progress.doneLessons()).sort((a, b) => String(b[1].at).localeCompare(String(a[1].at)));
   const doneBox = document.getElementById('done');
@@ -25,7 +29,7 @@ async function render() {
     const l = await lesson(id);
     return h('a', { class: 'question-link', href: lessonUrl(id), style: { border: '1px solid var(--border)' } },
       `${l ? `${l.title} · ${l.keyText}` : id}${info.at ? ` · ${info.at}` : ''}`);
-  })) : [h('p', { class: 'muted' }, 'No lessons finished yet.')]));
+  })) : [h('p', { class: 'muted' }, T.noLessonsDone)]));
 }
 
 render();
